@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantAccessToken } from "@/lib/feishu";
 
-async function fetchImage(token: string, extra: string | null): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
+async function fetchImage(fileToken: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
   const tenantToken = await getTenantAccessToken();
 
-  // Step 1: get a temporary download URL
-  const body: Record<string, any> = { file_tokens: [token] };
-  if (extra) body.extra = extra;
+  // Try batch_get_tmp_download_url first
+  const body = { file_tokens: [fileToken] };
 
   const tempRes = await fetch(
     "https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url",
@@ -21,54 +20,53 @@ async function fetchImage(token: string, extra: string | null): Promise<{ buffer
   );
 
   const tempData = await tempRes.json();
-  if (tempData.code !== 0) return null;
+  if (tempData.code === 0) {
+    const urls = tempData.data?.tmp_download_urls ?? [];
+    const downloadUrl = urls[0]?.url || urls[0]?.tmp_download_url;
+    if (downloadUrl) {
+      const imgRes = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${tenantToken}`,
+          Accept: "image/avif,image/webp,image/png,*/*",
+        },
+      });
+      if (imgRes.ok) {
+        const contentType = imgRes.headers.get("content-type") ?? "image/png";
+        const buffer = await imgRes.arrayBuffer();
+        return { buffer, contentType };
+      }
+    }
+  }
 
-  const urls = tempData.data?.tmp_download_urls ?? [];
-  const downloadUrl = urls[0]?.url || urls[0]?.tmp_download_url;
-  if (!downloadUrl) return null;
+  // Fallback: try direct download via drive media API
+  const directRes = await fetch(
+    `https://open.feishu.cn/open-apis/drive/v1/medias/${fileToken}/download`,
+    {
+      headers: {
+        Authorization: `Bearer ${tenantToken}`,
+        Accept: "image/avif,image/webp,image/png,*/*",
+      },
+    }
+  );
 
-  // Step 2: download the actual image
-  const imgRes = await fetch(downloadUrl, {
-    headers: {
-      Authorization: `Bearer ${tenantToken}`,
-      Accept: "image/avif,image/webp,image/png,*/*",
-    },
-  });
+  if (directRes.ok) {
+    const contentType = directRes.headers.get("content-type") ?? "image/png";
+    const buffer = await directRes.arrayBuffer();
+    return { buffer, contentType };
+  }
 
-  if (!imgRes.ok) return null;
-
-  const contentType = imgRes.headers.get("content-type") ?? "image/png";
-  const buffer = await imgRes.arrayBuffer();
-  return { buffer, contentType };
+  return null;
 }
 
 export async function GET(req: NextRequest) {
-  const b64 = req.nextUrl.searchParams.get("b64");
+  const fileToken = req.nextUrl.searchParams.get("token");
 
-  if (!b64) {
-    return NextResponse.json({ error: "Missing b64" }, { status: 400 });
+  if (!fileToken) {
+    return NextResponse.json({ error: "Missing token" }, { status: 400 });
   }
 
   try {
-    // Decode the full Feishu URL to extract file_token and extra
-    const feishuUrl = decodeURIComponent(atob(b64));
-
-    // Parse token and extra from the URL
-    // Format: https://open.feishu.cn/open-apis/drive/v1/medias/{token}/download?extra={json}
-    const urlObj = new URL(feishuUrl);
-    const pathParts = urlObj.pathname.split("/");
-    const fileToken = pathParts[pathParts.indexOf("medias") + 1];
-    const extra = urlObj.searchParams.get("extra");
-
-    if (!fileToken) {
-      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
-    }
-
-    // Try fetching with extra first, then without
-    let result = await fetchImage(fileToken, extra);
-    if (!result) {
-      result = await fetchImage(fileToken, null);
-    }
+    const result = await fetchImage(fileToken);
 
     if (!result) {
       return NextResponse.json(

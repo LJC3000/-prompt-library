@@ -93,7 +93,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
   const mainResultImg =
     !resultImgError ? prompt.results?.[0] : undefined;
   const mainImgSrc = mainResultImg?.url
-    ? `/api/image?b64=${btoa(encodeURIComponent(mainResultImg.url))}`
+    ? `/api/image?token=${mainResultImg.file_token}`
     : null;
 
   const handleCopy = async () => {
@@ -223,7 +223,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className="flex flex-col gap-4">
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = `/api/image?b64=${btoa(encodeURIComponent(file.url!))}`;
+                            const refSrc = `/api/image?token=${file.file_token}`;
                             return (
                               <div
                                 key={file.file_token}
@@ -276,7 +276,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className={`flex-1 flex gap-1 min-h-0 ${prompt.refImages!.length >= 2 ? "flex-row" : "flex-col"}`}>
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = `/api/image?b64=${btoa(encodeURIComponent(file.url!))}`;
+                            const refSrc = `/api/image?token=${file.file_token}`;
                             return (
                               <div
                                 key={file.file_token}
