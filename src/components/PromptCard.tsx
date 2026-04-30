@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
 import { imageSrc, proxyUrl } from "@/lib/imageUrl";
@@ -33,8 +33,27 @@ interface PromptCardProps {
 export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
   const [ratio, setRatio] = useState<number | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const { prompt } = card;
+
+  // IntersectionObserver: only load image when card is near the viewport
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -50,12 +69,13 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
   // On error: fall back to proxied Bearer URL.
   const [useProxy, setUseProxy] = useState(false);
   const imgSrc =
-    card.resultImage && !imgError
+    shouldLoad && card.resultImage && !imgError
       ? (useProxy ? proxyUrl(card.resultImage) : imageSrc(card.resultImage))
       : null;
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.02, 0.6), ease: "easeOut" }}
@@ -92,6 +112,7 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
             <img
               src={imgSrc}
               alt={prompt.title}
+              loading="lazy"
               className={`w-full align-middle ${ratio ? "block" : "absolute opacity-0"}`}
               onLoad={handleLoad}
               onError={() => { if (useProxy) setImgError(true); else setUseProxy(true); }}

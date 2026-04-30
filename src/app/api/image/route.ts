@@ -2,21 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTenantAccessToken } from "@/lib/feishu";
 
 async function fetchAsImage(url: string, headers: Record<string, string>): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
-  try {
-    console.log(`[image-proxy] Fetching: ${url.substring(0, 120)}...`);
-    const res = await fetch(url, { headers });
-    if (!res.ok) {
-      console.log(`[image-proxy] ${res.status} for ${url.substring(0, 80)}`);
-      return null;
+  const delays = [1000, 3000, 7000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      if (attempt > 0) {
+        const jitter = Math.round(Math.random() * 500);
+        await new Promise((r) => setTimeout(r, delays[attempt - 1] + jitter));
+        console.log(`[image-proxy] Retry #${attempt}: ${url.substring(0, 80)}...`);
+      }
+      const res = await fetch(url, { headers });
+      if (res.status === 429 && attempt < delays.length) continue;
+      if (!res.ok) {
+        console.log(`[image-proxy] ${res.status} for ${url.substring(0, 80)}`);
+        return null;
+      }
+      const contentType = res.headers.get("content-type") ?? "image/png";
+      const buffer = await res.arrayBuffer();
+      console.log(`[image-proxy] OK ${contentType} ${buffer.byteLength}bytes`);
+      return { buffer, contentType };
+    } catch (e) {
+      if (attempt === delays.length) {
+        console.log(`[image-proxy] Error: ${e instanceof Error ? e.message : "unknown"}`);
+        return null;
+      }
     }
-    const contentType = res.headers.get("content-type") ?? "image/png";
-    const buffer = await res.arrayBuffer();
-    console.log(`[image-proxy] OK ${contentType} ${buffer.byteLength}bytes`);
-    return { buffer, contentType };
-  } catch (e) {
-    console.log(`[image-proxy] Error: ${e instanceof Error ? e.message : "unknown"}`);
-    return null;
   }
+  return null;
 }
 
 export async function GET(req: NextRequest) {
