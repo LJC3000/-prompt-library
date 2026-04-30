@@ -1,173 +1,112 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantAccessToken } from "@/lib/feishu";
 
+async function fetchImage(token: string, extra: string | null): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
+  const tenantToken = await getTenantAccessToken();
+
+  // Step 1: get a temporary download URL
+  const body: Record<string, any> = { file_tokens: [token] };
+  if (extra) body.extra = extra;
+
+  const tempRes = await fetch(
+    "https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${tenantToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  const tempData = await tempRes.json();
+  if (tempData.code !== 0) return null;
+
+  const urls = tempData.data?.tmp_download_urls ?? [];
+  const downloadUrl = urls[0]?.url || urls[0]?.tmp_download_url;
+  if (!downloadUrl) return null;
+
+  // Step 2: download the actual image
+  const imgRes = await fetch(downloadUrl, {
+    headers: {
+      Authorization: `Bearer ${tenantToken}`,
+      Accept: "image/avif,image/webp,image/png,*/*",
+    },
+  });
+
+  if (!imgRes.ok) return null;
+
+  const contentType = imgRes.headers.get("content-type") ?? "image/png";
+  const buffer = await imgRes.arrayBuffer();
+  return { buffer, contentType };
+}
+
 /**
  * Extract file_token and extra from a Feishu file URL.
- * Supports multiple URL formats:
+ * Supports:
  *   drive/v1/medias/{token}/download?extra=xxx
- *   bitable/v1/apps/{appToken}/tables/{tableId}/records/{recordId}/attachments/{token}/download
- *   drive/v1/medias/{token}/download
+ *   bitable/v1/.../attachments/{token}/download
  */
-function parseFileUrl(url: string): { fileToken: string; extra: string | null } | null {
+function parseFileUrl(url: string): { fileToken: string | null; extra: string | null } {
   try {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split("/").filter(Boolean);
     const extra = urlObj.searchParams.get("extra");
 
-    // Find the segment right before "download"
+    // Find the token — it's the segment right before "download"
     const downloadIdx = pathParts.indexOf("download");
     if (downloadIdx >= 1) {
       return { fileToken: pathParts[downloadIdx - 1], extra };
     }
 
-    // Alternatively find the segment after "medias"
+    // Fallback: find segment after "medias"
     const mediasIdx = pathParts.indexOf("medias");
     if (mediasIdx >= 0 && mediasIdx + 1 < pathParts.length) {
       return { fileToken: pathParts[mediasIdx + 1], extra };
     }
 
-    return null;
+    return { fileToken: null, extra: null };
   } catch {
-    return null;
+    return { fileToken: null, extra: null };
   }
 }
 
 export async function GET(req: NextRequest) {
-  const urlEncoded = req.nextUrl.searchParams.get("url");
+  const b64 = req.nextUrl.searchParams.get("b64");
 
-  if (!urlEncoded) {
-    return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  if (!b64) {
+    return NextResponse.json({ error: "Missing b64" }, { status: 400 });
   }
 
   try {
-    const url = decodeURIComponent(urlEncoded);
-    const parsed = parseFileUrl(url);
+    // Decode the full Feishu URL to extract file_token and extra
+    const feishuUrl = decodeURIComponent(atob(b64));
+    const { fileToken, extra } = parseFileUrl(feishuUrl);
 
-    if (!parsed) {
-      // Can't parse the URL — try direct fetch with auth as last resort
-      const tenantToken = await getTenantAccessToken();
-      const imgRes = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${tenantToken}`,
-          Accept: "image/avif,image/webp,image/png,*/*",
-        },
-      });
-      if (!imgRes.ok) {
-        return NextResponse.json({ error: "Unsupported URL format" }, { status: 502 });
-      }
-      const contentType = imgRes.headers.get("content-type") ?? "image/png";
-      const buffer = await imgRes.arrayBuffer();
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=86400, s-maxage=86400",
-        },
-      });
+    if (!fileToken) {
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    const { fileToken, extra } = parsed;
-    const tenantToken = await getTenantAccessToken();
-
-    // Strategy 1: batch_get_tmp_download_url (with extra if available)
-    const body: Record<string, any> = { file_tokens: [fileToken] };
-    if (extra) body.extra = extra;
-
-    const tempRes = await fetch(
-      "https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tenantToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    const tempData = await tempRes.json();
-    if (tempData.code === 0) {
-      const urls = tempData.data?.tmp_download_urls ?? [];
-      const downloadUrl = urls[0]?.url || urls[0]?.tmp_download_url;
-      if (downloadUrl) {
-        const imgRes = await fetch(downloadUrl, {
-          headers: {
-            Authorization: `Bearer ${tenantToken}`,
-            Accept: "image/avif,image/webp,image/png,*/*",
-          },
-        });
-        if (imgRes.ok) {
-          const contentType = imgRes.headers.get("content-type") ?? "image/png";
-          const buffer = await imgRes.arrayBuffer();
-          return new NextResponse(buffer, {
-            headers: {
-              "Content-Type": contentType,
-              "Cache-Control": "public, max-age=86400, s-maxage=86400",
-            },
-          });
-        }
-      }
+    // Try fetching with extra first, then without
+    let result = await fetchImage(fileToken, extra);
+    if (!result) {
+      result = await fetchImage(fileToken, null);
     }
 
-    // Strategy 2: try batch_get_tmp_download_url without extra
-    if (extra) {
-      const retryRes = await fetch(
-        "https://open.feishu.cn/open-apis/drive/v1/medias/batch_get_tmp_download_url",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${tenantToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ file_tokens: [fileToken] }),
-        }
+    if (!result) {
+      return NextResponse.json(
+        { error: "Failed to fetch image from Feishu" },
+        { status: 502 }
       );
-      const retryData = await retryRes.json();
-      if (retryData.code === 0) {
-        const urls = retryData.data?.tmp_download_urls ?? [];
-        const downloadUrl = urls[0]?.url || urls[0]?.tmp_download_url;
-        if (downloadUrl) {
-          const imgRes = await fetch(downloadUrl, {
-            headers: {
-              Authorization: `Bearer ${tenantToken}`,
-              Accept: "image/avif,image/webp,image/png,*/*",
-            },
-          });
-          if (imgRes.ok) {
-            const contentType = imgRes.headers.get("content-type") ?? "image/png";
-            const buffer = await imgRes.arrayBuffer();
-            return new NextResponse(buffer, {
-              headers: {
-                "Content-Type": contentType,
-                "Cache-Control": "public, max-age=86400, s-maxage=86400",
-              },
-            });
-          }
-        }
-      }
     }
 
-    // Strategy 3: direct fetch with Bearer auth
-    const directRes = await fetch(url, {
+    return new NextResponse(result.buffer, {
       headers: {
-        Authorization: `Bearer ${tenantToken}`,
-        Accept: "image/avif,image/webp,image/png,*/*",
+        "Content-Type": result.contentType,
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
       },
     });
-    if (directRes.ok) {
-      const contentType = directRes.headers.get("content-type") ?? "image/png";
-      const buffer = await directRes.arrayBuffer();
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=86400, s-maxage=86400",
-        },
-      });
-    }
-
-    return NextResponse.json(
-      { error: "All download strategies failed" },
-      { status: 502 }
-    );
   } catch (e) {
     return NextResponse.json(
       { error: `Proxy error: ${e instanceof Error ? e.message : "unknown"}` },
