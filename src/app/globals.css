@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --muted: #a1a1aa;
+  --border: #e4e4e7;
+  --card: #ffffff;
+  --card-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 2px 4px rgba(0, 0, 0, 0.03);
+
+  /* Morandi color palette */
+  --morandi-sand: #d4c8b8;
+  --morandi-ice: #b8c4c8;
+  --morandi-lavender: #c4b8c8;
+  --morandi-mushroom: #c8c0b8;
+  --morandi-sage: #b8c8c0;
+  --morandi-rose: #c8b8b8;
+  --morandi-olive: #c0c0b8;
+  --morandi-steel: #b8bcc8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-y: scroll;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: rgba(0, 0, 0, 0.08);
+}
