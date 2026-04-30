@@ -47,7 +47,7 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
 
   const imgSrc =
     card.resultImage && !imgError
-      ? `/api/image?token=${card.resultImage.file_token}`
+      ? `/api/image?url=${encodeURIComponent(card.resultImage.tmp_url ?? card.resultImage.url!)}`
       : null;
 
   return (
