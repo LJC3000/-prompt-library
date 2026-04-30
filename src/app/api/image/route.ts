@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTenantAccessToken } from "@/lib/feishu";
 
 export async function GET(req: NextRequest) {
-  const url = req.nextUrl.searchParams.get("url");
+  const urlEncoded = req.nextUrl.searchParams.get("url");
 
-  if (!url) {
+  if (!urlEncoded) {
     return NextResponse.json({ error: "Missing url" }, { status: 400 });
   }
 
   try {
-    const decodedUrl = decodeURIComponent(url);
-    const imgRes = await fetch(decodedUrl, {
+    const url = decodeURIComponent(urlEncoded);
+    const tenantToken = await getTenantAccessToken();
+
+    const imgRes = await fetch(url, {
       headers: {
+        Authorization: `Bearer ${tenantToken}`,
         Accept: "image/avif,image/webp,image/png,*/*",
       },
     });
