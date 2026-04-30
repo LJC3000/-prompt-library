@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptItem } from "@/types/prompt";
-import { imageProxyUrl } from "@/lib/imageUrl";
+import { imageSrc, proxyUrl } from "@/lib/imageUrl";
 
 interface PromptModalProps {
   prompt: PromptItem | null;
@@ -54,7 +54,10 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
   const [resultImgError, setResultImgError] = useState(false);
   const [mainImgLoaded, setMainImgLoaded] = useState(false);
   const [mainImgRatio, setMainImgRatio] = useState<number | null>(null);
+  const [mainUseProxy, setMainUseProxy] = useState(false);
   const [refLoadedMap, setRefLoadedMap] = useState<Record<string, boolean>>({});
+  const [refProxyMap, setRefProxyMap] = useState<Record<string, boolean>>({});
+  const [refErrorMap, setRefErrorMap] = useState<Record<string, boolean>>({});
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,7 +79,10 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
     setResultImgError(false);
     setMainImgLoaded(false);
     setMainImgRatio(null);
+    setMainUseProxy(false);
     setRefLoadedMap({});
+    setRefProxyMap({});
+    setRefErrorMap({});
   }, [prompt]);
 
   const handleRefLoad = useCallback((fileToken: string) => {
@@ -93,8 +99,8 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
 
   const mainResultImg =
     !resultImgError ? prompt.results?.[0] : undefined;
-  const mainImgSrc = mainResultImg?.url
-    ? imageProxyUrl(mainResultImg)
+  const mainImgSrc = mainResultImg
+    ? (mainUseProxy ? proxyUrl(mainResultImg) : imageSrc(mainResultImg))
     : null;
 
   const handleCopy = async () => {
@@ -169,7 +175,13 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   className="w-full h-auto block transition-all duration-300 cursor-pointer"
                   style={{ opacity: mainImgLoaded ? 1 : 0 }}
                   onLoad={handleMainLoad}
-                  onError={() => setResultImgError(true)}
+                  onError={() => {
+                    if (mainUseProxy) setResultImgError(true);
+                    else {
+                      setMainUseProxy(true);
+                      setMainImgLoaded(false);
+                    }
+                  }}
                   onClick={() => setViewerSrc(mainImgSrc)}
                 />
                 {/* Hover hint */}
@@ -194,7 +206,13 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   className="h-full w-auto block shrink-0 border-r border-zinc-100 transition-opacity duration-300 cursor-pointer"
                   style={{ opacity: mainImgLoaded ? 1 : 0, backgroundColor: colorFromKey(prompt.id) }}
                   onLoad={handleMainLoad}
-                  onError={() => setResultImgError(true)}
+                  onError={() => {
+                    if (mainUseProxy) setResultImgError(true);
+                    else {
+                      setMainUseProxy(true);
+                      setMainImgLoaded(false);
+                    }
+                  }}
                   onClick={() => setViewerSrc(mainImgSrc)}
                 />
                 {/* Hover hint */}
@@ -224,7 +242,8 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className="flex flex-col gap-4">
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = imageProxyUrl(file);
+                            const useProxy = refProxyMap[file.file_token] || refErrorMap[file.file_token];
+                            const refSrc = useProxy ? proxyUrl(file) : imageSrc(file);
                             return (
                               <div
                                 key={file.file_token}
@@ -237,7 +256,14 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                                   className="w-full h-auto object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
                                   onLoad={() => handleRefLoad(file.file_token)}
-                                  onClick={() => setViewerSrc(refSrc)}
+                                  onError={() => {
+                                    if (refProxyMap[file.file_token]) {
+                                      setRefErrorMap((p) => ({ ...p, [file.file_token]: true }));
+                                    } else {
+                                      setRefProxyMap((p) => ({ ...p, [file.file_token]: true }));
+                                    }
+                                  }}
+                                  onClick={() => setViewerSrc(refSrc === undefined ? null : refSrc)}
                                 />
                                 <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-black/40 text-white/60 px-1.5 py-1 text-[10px] opacity-0 group-hover/ref:opacity-100 transition-opacity pointer-events-none">
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -277,7 +303,8 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className={`flex-1 flex gap-1 min-h-0 ${prompt.refImages!.length >= 2 ? "flex-row" : "flex-col"}`}>
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = imageProxyUrl(file);
+                            const useProxy = refProxyMap[file.file_token] || refErrorMap[file.file_token];
+                            const refSrc = useProxy ? proxyUrl(file) : imageSrc(file);
                             return (
                               <div
                                 key={file.file_token}
@@ -289,7 +316,14 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                                   className="w-full h-full object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
                                   onLoad={() => handleRefLoad(file.file_token)}
-                                  onClick={() => setViewerSrc(refSrc)}
+                                  onError={() => {
+                                    if (refProxyMap[file.file_token]) {
+                                      setRefErrorMap((p) => ({ ...p, [file.file_token]: true }));
+                                    } else {
+                                      setRefProxyMap((p) => ({ ...p, [file.file_token]: true }));
+                                    }
+                                  }}
+                                  onClick={() => setViewerSrc(refSrc === undefined ? null : refSrc)}
                                 />
                                 <div className="absolute top-1 left-1 z-10 flex items-center gap-0.5 rounded-full bg-black/40 text-white/60 px-1 py-0.5 text-[8px] opacity-0 group-hover/ref:opacity-100 transition-opacity pointer-events-none">
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

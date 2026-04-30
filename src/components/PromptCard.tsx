@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
-import { imageProxyUrl } from "@/lib/imageUrl";
+import { imageSrc, proxyUrl } from "@/lib/imageUrl";
 
 const MORANDI_COLORS = [
   "#d4c8b8",
@@ -46,9 +46,12 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
 
   const bgColor = colorFromKey(card.cardKey);
 
+  // First try: use tmp_url directly (fast, no proxy).
+  // On error: fall back to proxied Bearer URL.
+  const [useProxy, setUseProxy] = useState(false);
   const imgSrc =
     card.resultImage && !imgError
-      ? imageProxyUrl(card.resultImage)
+      ? (useProxy ? proxyUrl(card.resultImage) : imageSrc(card.resultImage))
       : null;
 
   return (
@@ -91,7 +94,7 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
               alt={prompt.title}
               className={`w-full align-middle ${ratio ? "block" : "absolute opacity-0"}`}
               onLoad={handleLoad}
-              onError={() => setImgError(true)}
+              onError={() => { if (useProxy) setImgError(true); else setUseProxy(true); }}
             />
           </div>
         ) : (
