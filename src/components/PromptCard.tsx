@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
+import { imageProxyUrl } from "@/lib/imageUrl";
 
 const MORANDI_COLORS = [
   "#d4c8b8",
@@ -47,7 +48,7 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
 
   const imgSrc =
     card.resultImage && !imgError
-      ? `/api/image?b64=${btoa(encodeURIComponent(card.resultImage.url!))}`
+      ? imageProxyUrl(card.resultImage)
       : null;
 
   return (

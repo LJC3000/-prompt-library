@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptItem } from "@/types/prompt";
+import { imageProxyUrl } from "@/lib/imageUrl";
 
 interface PromptModalProps {
   prompt: PromptItem | null;
@@ -93,7 +94,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
   const mainResultImg =
     !resultImgError ? prompt.results?.[0] : undefined;
   const mainImgSrc = mainResultImg?.url
-    ? `/api/image?b64=${btoa(encodeURIComponent(mainResultImg.url!))}`
+    ? imageProxyUrl(mainResultImg)
     : null;
 
   const handleCopy = async () => {
@@ -223,7 +224,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className="flex flex-col gap-4">
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = `/api/image?b64=${btoa(encodeURIComponent(file.url!))}`;
+                            const refSrc = imageProxyUrl(file);
                             return (
                               <div
                                 key={file.file_token}
@@ -231,7 +232,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                                 style={{ backgroundColor: MORANDI_COLORS[i % MORANDI_COLORS.length] }}
                               >
                                 <img
-                                  src={refSrc}
+                                  src={refSrc ?? ""}
                                   alt="reference"
                                   className="w-full h-auto object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
@@ -276,14 +277,14 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className={`flex-1 flex gap-1 min-h-0 ${prompt.refImages!.length >= 2 ? "flex-row" : "flex-col"}`}>
                           {prompt.refImages!.map((file, i) => {
-                            const refSrc = `/api/image?b64=${btoa(encodeURIComponent(file.url!))}`;
+                            const refSrc = imageProxyUrl(file);
                             return (
                               <div
                                 key={file.file_token}
                                 className="flex-1 min-w-0 rounded-sm overflow-hidden ring-1 ring-zinc-100 relative group/ref"
                               >
                                 <img
-                                  src={refSrc}
+                                  src={refSrc ?? ""}
                                   alt="reference"
                                   className="w-full h-full object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
