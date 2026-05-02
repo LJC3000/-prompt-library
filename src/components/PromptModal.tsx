@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PromptItem } from "@/types/prompt";
-import { imageSrc, proxyUrl } from "@/lib/imageUrl";
+import { imageSrc, proxyUrl, refreshTmpUrl } from "@/lib/imageUrl";
 
 interface PromptModalProps {
   prompt: PromptItem | null;
@@ -12,6 +12,7 @@ interface PromptModalProps {
   onNext: () => void;
   onPrev: () => void;
   onClose: () => void;
+  preloadedUrls: Record<string, string>;
 }
 
 const MORANDI_COLORS = [
@@ -49,16 +50,26 @@ function NavButton({ side, onClick, disabled }: { side: "left" | "right"; onClic
   );
 }
 
-export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, onClose }: PromptModalProps) {
+interface ImageCache {
+  ratio: number | null;
+  loaded: boolean;
+}
+
+export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, onClose, preloadedUrls }: PromptModalProps) {
   const [copied, setCopied] = useState(false);
-  const [resultImgError, setResultImgError] = useState(false);
+  // sourceMode: "primary"=tmp_url, "refreshing"=waiting, "proxy"=/api/image, "failed"=placeholder
+  const [sourceMode, setSourceMode] = useState<"primary" | "refreshing" | "proxy" | "failed">("primary");
+  const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
   const [mainImgLoaded, setMainImgLoaded] = useState(false);
   const [mainImgRatio, setMainImgRatio] = useState<number | null>(null);
-  const [mainUseProxy, setMainUseProxy] = useState(false);
   const [refLoadedMap, setRefLoadedMap] = useState<Record<string, boolean>>({});
-  const [refProxyMap, setRefProxyMap] = useState<Record<string, boolean>>({});
-  const [refErrorMap, setRefErrorMap] = useState<Record<string, boolean>>({});
+  const [refreshedRefUrls, setRefreshedRefUrls] = useState<Record<string, string>>({});
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  const sourceModeRef = useRef(sourceMode);
+
+  const imageCacheRef = useRef<Map<string, ImageCache>>(new Map());
+
+  useEffect(() => { sourceModeRef.current = sourceMode; }, [sourceMode]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -74,19 +85,43 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
     };
   }, [prompt, onClose, onNext, onPrev]);
 
+  // On prompt change: check cache, only reset if not cached
   useEffect(() => {
     setCopied(false);
-    setResultImgError(false);
-    setMainImgLoaded(false);
-    setMainImgRatio(null);
-    setMainUseProxy(false);
+    setSourceMode("primary");
+    setRefreshedUrl(null);
     setRefLoadedMap({});
-    setRefProxyMap({});
-    setRefErrorMap({});
+    setRefreshedRefUrls({});
+    setViewerSrc(null);
+
+    if (prompt) {
+      const cached = imageCacheRef.current.get(prompt.id);
+      if (cached) {
+        setMainImgLoaded(cached.loaded);
+        setMainImgRatio(cached.ratio);
+      } else {
+        setMainImgLoaded(false);
+        setMainImgRatio(null);
+      }
+    }
   }, [prompt]);
+
+  // Update cache when main image loads or ratio is known
+  useEffect(() => {
+    if (prompt && mainImgLoaded && mainImgRatio !== null) {
+      imageCacheRef.current.set(prompt.id, { ratio: mainImgRatio, loaded: true });
+    }
+  }, [prompt, mainImgLoaded, mainImgRatio]);
 
   const handleRefLoad = useCallback((fileToken: string) => {
     setRefLoadedMap((prev) => ({ ...prev, [fileToken]: true }));
+  }, []);
+
+  const handleRefError = useCallback((file: NonNullable<PromptItem["results"]>[number]) => {
+    if (!file.file_token) return;
+    refreshTmpUrl(file.file_token, file.extra).then((url) => {
+      if (url) setRefreshedRefUrls((prev) => ({ ...prev, [file.file_token]: url }));
+    });
   }, []);
 
   const handleMainLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -95,13 +130,42 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
     setMainImgRatio(img.naturalWidth / img.naturalHeight);
   }, []);
 
+  const triggerRefresh = useCallback(() => {
+    const file = prompt?.results?.[0];
+    if (!file?.file_token) {
+      setSourceMode("proxy");
+      return;
+    }
+    setSourceMode("refreshing");
+    refreshTmpUrl(file.file_token, file.extra).then((url) => {
+      if (url) {
+        setRefreshedUrl(url);
+        setSourceMode("primary");
+      } else {
+        setSourceMode("proxy");
+      }
+    });
+  }, [prompt]);
+
+  const handleMainError = useCallback(() => {
+    if (sourceMode === "primary") {
+      triggerRefresh();
+    } else if (sourceMode === "proxy") {
+      setSourceMode("failed");
+    }
+  }, [sourceMode, triggerRefresh]);
+
   if (!prompt) return null;
 
-  const mainResultImg =
-    !resultImgError ? prompt.results?.[0] : undefined;
-  const mainImgSrc = mainResultImg
-    ? (mainUseProxy ? proxyUrl(mainResultImg) : imageSrc(mainResultImg))
-    : null;
+  const mainResultImg = sourceMode !== "failed" ? prompt.results?.[0] : undefined;
+  const mainImgSrc = ((): string | null | undefined => {
+    if (!mainResultImg || sourceMode === "refreshing") return null;
+    const preloaded = preloadedUrls[mainResultImg.file_token];
+    if (preloaded) return preloaded;
+    if (sourceMode === "primary") return refreshedUrl ?? imageSrc(mainResultImg);
+    if (sourceMode === "proxy") return proxyUrl(mainResultImg);
+    return null;
+  })();
 
   const handleCopy = async () => {
     try {
@@ -126,7 +190,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
 
   return (
     <AnimatePresence>
-      <div className={"fixed inset-0 z-[100] flex justify-center overflow-y-auto" + (isTall ? " items-center" : " items-start")}>
+      <div key="modal" className="fixed inset-0 z-[100] flex justify-center overflow-y-auto items-start">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -144,11 +208,11 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
           className="relative z-10 mx-4"
           style={{
             willChange: "transform",
-            marginTop: isTall ? "0" : "8vh",
-            marginBottom: isTall ? "0" : "5vh",
-            maxWidth: isTall ? "none" : "64rem",
-            width: isTall ? "auto" : undefined,
+            marginTop: "8vh",
+            marginBottom: "5vh",
+            maxWidth: isTall ? undefined : "48rem",
           }}
+          // 竖图不设宽度上限，保证右侧信息面板有足够空间
           onClick={(e) => e.stopPropagation()}
         >
           <div className={"rounded-2xl bg-white shadow-2xl" + (isTall ? " flex h-[80vh] overflow-hidden" : " overflow-hidden")}>
@@ -175,13 +239,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   className="w-full h-auto block transition-all duration-300 cursor-pointer"
                   style={{ opacity: mainImgLoaded ? 1 : 0 }}
                   onLoad={handleMainLoad}
-                  onError={() => {
-                    if (mainUseProxy) setResultImgError(true);
-                    else {
-                      setMainUseProxy(true);
-                      setMainImgLoaded(false);
-                    }
-                  }}
+                  onError={handleMainError}
                   onClick={() => setViewerSrc(mainImgSrc)}
                 />
                 {/* Hover hint */}
@@ -206,13 +264,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   className="h-full w-auto block shrink-0 border-r border-zinc-100 transition-opacity duration-300 cursor-pointer"
                   style={{ opacity: mainImgLoaded ? 1 : 0, backgroundColor: colorFromKey(prompt.id) }}
                   onLoad={handleMainLoad}
-                  onError={() => {
-                    if (mainUseProxy) setResultImgError(true);
-                    else {
-                      setMainUseProxy(true);
-                      setMainImgLoaded(false);
-                    }
-                  }}
+                  onError={handleMainError}
                   onClick={() => setViewerSrc(mainImgSrc)}
                 />
                 {/* Hover hint */}
@@ -242,28 +294,21 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className="flex flex-col gap-4">
                           {prompt.refImages!.map((file, i) => {
-                            const useProxy = refProxyMap[file.file_token] || refErrorMap[file.file_token];
-                            const refSrc = useProxy ? proxyUrl(file) : imageSrc(file);
+                            const refSrc = refreshedRefUrls[file.file_token] ?? preloadedUrls[file.file_token] ?? imageSrc(file) ?? proxyUrl(file) ?? undefined;
                             return (
                               <div
-                                key={file.file_token}
-                                className="rounded-xl overflow-hidden ring-1 ring-zinc-100 relative group/ref"
+                                key={file.file_token || `ref_${i}`}
+                                className="rounded-xl overflow-hidden ring-1 ring-zinc-100 relative group/ref min-h-[100px]"
                                 style={{ backgroundColor: MORANDI_COLORS[i % MORANDI_COLORS.length] }}
                               >
                                 <img
-                                  src={refSrc ?? ""}
+                                  src={refSrc}
                                   alt="reference"
                                   className="w-full h-auto object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
                                   onLoad={() => handleRefLoad(file.file_token)}
-                                  onError={() => {
-                                    if (refProxyMap[file.file_token]) {
-                                      setRefErrorMap((p) => ({ ...p, [file.file_token]: true }));
-                                    } else {
-                                      setRefProxyMap((p) => ({ ...p, [file.file_token]: true }));
-                                    }
-                                  }}
-                                  onClick={() => setViewerSrc(refSrc === undefined ? null : refSrc)}
+                                  onError={() => handleRefError(file)}
+                                  onClick={() => setViewerSrc(refSrc)}
                                 />
                                 <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-black/40 text-white/60 px-1.5 py-1 text-[10px] opacity-0 group-hover/ref:opacity-100 transition-opacity pointer-events-none">
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -290,12 +335,73 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
 
               {/* For tall: right column */}
               {isTall && (
-                <div className="flex flex-col" style={{ width: 400 }}>
-                  <div className="p-4 lg:p-5 pt-12 lg:pt-14">
-                    <ModalContent prompt={prompt} copied={copied} handleCopy={handleCopy} />
+                <div className="flex flex-col w-[380px] shrink-0">
+                  {/* Fixed top: title + copy + category */}
+                  <div className="shrink-0 p-4 lg:p-5 pt-12 lg:pt-14 pb-3">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <h2 className="text-base font-semibold text-zinc-900">
+                        {prompt.project || prompt.title}
+                      </h2>
+                      <button
+                        onClick={handleCopy}
+                        className="shrink-0 flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700"
+                      >
+                        {copied ? (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                            Copy Prompt
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-zinc-400 uppercase tracking-wider">
+                      {prompt.category}
+                    </p>
                   </div>
 
-                  <div className="flex-1 border-t border-zinc-100 p-4 lg:p-5 flex flex-col min-h-0">
+                  {/* Scrollable middle: prompt text only */}
+                  <div className="flex-1 overflow-y-auto min-h-0 px-4 lg:px-5 py-3">
+                    <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
+                      Prompt
+                    </h4>
+                    <div className="text-xs leading-relaxed text-zinc-600 whitespace-pre-wrap">
+                      {prompt.content}
+                    </div>
+                  </div>
+
+                  {/* Fixed bottom: AI Tool/Model + Department */}
+                  <div className="shrink-0 px-4 lg:px-5 pb-4 lg:pb-5 pt-3 space-y-4">
+                    {(prompt.aiTool || prompt.aiModel) && (
+                      <div>
+                        <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
+                          AI Tool / Model
+                        </h4>
+                        <p className="text-xs text-zinc-700">
+                          {[prompt.aiTool, prompt.aiModel].filter(Boolean).join(" — ")}
+                        </p>
+                      </div>
+                    )}
+                    {prompt.department && (
+                      <div>
+                        <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
+                          Department
+                        </h4>
+                        <p className="text-xs text-zinc-700">{prompt.department}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={hasRefImages ? "h-56 shrink-0 border-t border-zinc-100 p-4 lg:p-5 flex flex-col" : ""}>
                     {hasRefImages && (
                       <>
                         <h4 className="text-[9px] font-medium tracking-wider text-zinc-400 uppercase mb-1 shrink-0">
@@ -303,27 +409,20 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </h4>
                         <div className={`flex-1 flex gap-1 min-h-0 ${prompt.refImages!.length >= 2 ? "flex-row" : "flex-col"}`}>
                           {prompt.refImages!.map((file, i) => {
-                            const useProxy = refProxyMap[file.file_token] || refErrorMap[file.file_token];
-                            const refSrc = useProxy ? proxyUrl(file) : imageSrc(file);
+                            const refSrc = refreshedRefUrls[file.file_token] ?? preloadedUrls[file.file_token] ?? imageSrc(file) ?? proxyUrl(file) ?? undefined;
                             return (
                               <div
-                                key={file.file_token}
-                                className="flex-1 min-w-0 rounded-sm overflow-hidden ring-1 ring-zinc-100 relative group/ref"
+                                key={file.file_token || `ref_${i}`}
+                                className="flex-1 min-w-0 rounded-sm overflow-hidden ring-1 ring-zinc-100 relative group/ref min-h-[60px]"
                               >
                                 <img
-                                  src={refSrc ?? ""}
+                                  src={refSrc}
                                   alt="reference"
                                   className="w-full h-full object-contain transition-opacity duration-300 cursor-pointer"
                                   style={{ opacity: refLoadedMap[file.file_token] ? 1 : 0 }}
                                   onLoad={() => handleRefLoad(file.file_token)}
-                                  onError={() => {
-                                    if (refProxyMap[file.file_token]) {
-                                      setRefErrorMap((p) => ({ ...p, [file.file_token]: true }));
-                                    } else {
-                                      setRefProxyMap((p) => ({ ...p, [file.file_token]: true }));
-                                    }
-                                  }}
-                                  onClick={() => setViewerSrc(refSrc === undefined ? null : refSrc)}
+                                  onError={() => handleRefError(file)}
+                                  onClick={() => setViewerSrc(refSrc)}
                                 />
                                 <div className="absolute top-1 left-1 z-10 flex items-center gap-0.5 rounded-full bg-black/40 text-white/60 px-1 py-0.5 text-[8px] opacity-0 group-hover/ref:opacity-100 transition-opacity pointer-events-none">
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -339,7 +438,6 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                         </div>
                       </>
                     )}
-                    {!hasRefImages && <div className="flex-1" />}
                   </div>
                 </div>
               )}
@@ -353,7 +451,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
       </div>
 
       {/* Image viewer overlay */}
-      <ImageViewer
+      <ImageViewer key="viewer"
         src={viewerSrc}
         onClose={() => setViewerSrc(null)}
       />
@@ -366,23 +464,23 @@ function ModalContent({ prompt, copied, handleCopy }: { prompt: PromptItem; copi
     <>
       {/* Title row + Copy */}
       <div className="flex items-start justify-between gap-4 mb-2">
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="text-base font-semibold text-zinc-900">
           {prompt.project || prompt.title}
         </h2>
         <button
           onClick={handleCopy}
-          className="shrink-0 flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          className="shrink-0 flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-zinc-700"
         >
           {copied ? (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               Copied
             </>
           ) : (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
@@ -393,28 +491,28 @@ function ModalContent({ prompt, copied, handleCopy }: { prompt: PromptItem; copi
       </div>
 
       {/* Category — minimal text */}
-      <p className="text-xs text-zinc-400 mb-6 uppercase tracking-wider">
+      <p className="text-xs text-zinc-400 mb-4 uppercase tracking-wider">
         {prompt.category}
       </p>
 
       {/* Info sections */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div>
-          <h4 className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase mb-2">
+          <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
             Prompt
           </h4>
-          <p className="text-sm leading-relaxed text-zinc-600 whitespace-pre-wrap">
+          <div className="text-xs leading-relaxed text-zinc-600 whitespace-pre-wrap">
             {prompt.content}
-          </p>
+          </div>
         </div>
 
         {/* AI Tool + AI Model combined */}
         {(prompt.aiTool || prompt.aiModel) && (
           <div>
-            <h4 className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase mb-2">
+            <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
               AI Tool / Model
             </h4>
-            <p className="text-sm text-zinc-700">
+            <p className="text-xs text-zinc-700">
               {[prompt.aiTool, prompt.aiModel].filter(Boolean).join(" — ")}
             </p>
           </div>
@@ -422,10 +520,10 @@ function ModalContent({ prompt, copied, handleCopy }: { prompt: PromptItem; copi
 
         {prompt.department && (
           <div>
-            <h4 className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase mb-2">
+            <h4 className="text-[10px] font-medium tracking-wider text-zinc-400 uppercase mb-1.5">
               Department
             </h4>
-            <p className="text-sm text-zinc-700">{prompt.department}</p>
+            <p className="text-xs text-zinc-700">{prompt.department}</p>
           </div>
         )}
       </div>
@@ -440,6 +538,7 @@ function ImageViewer({ src, onClose }: { src: string | null; onClose: () => void
   const dragStart = useRef({ x: 0, y: 0 });
   const panAtDragStart = useRef({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
+  const wheelContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!src) return;
@@ -456,11 +555,18 @@ function ImageViewer({ src, onClose }: { src: string | null; onClose: () => void
     return () => document.removeEventListener("keydown", handleKey);
   }, [src, onClose]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setScale((prev) => Math.max(0.25, Math.min(prev + delta, 10)));
-  }, []);
+  // Native wheel listener with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = wheelContainerRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      setScale((prev) => Math.max(0.25, Math.min(prev + delta, 10)));
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [src]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -486,7 +592,6 @@ function ImageViewer({ src, onClose }: { src: string | null; onClose: () => void
     };
   }, [dragging]);
 
-
   if (!src) return null;
 
   return (
@@ -509,8 +614,8 @@ function ImageViewer({ src, onClose }: { src: string | null; onClose: () => void
       </button>
 
       <div
+        ref={wheelContainerRef}
         className="w-full h-full flex items-center justify-center p-10 select-none"
-        onWheel={handleWheel}
         onClick={onClose}
       >
         <div

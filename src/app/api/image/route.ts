@@ -1,94 +1,173 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantAccessToken } from "@/lib/feishu";
 
-async function fetchAsImage(url: string, headers: Record<string, string>): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
-  const delays = [1000, 3000, 7000];
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    try {
-      if (attempt > 0) {
-        const jitter = Math.round(Math.random() * 500);
-        await new Promise((r) => setTimeout(r, delays[attempt - 1] + jitter));
-        console.log(`[image-proxy] Retry #${attempt}: ${url.substring(0, 80)}...`);
-      }
-      const res = await fetch(url, { headers });
-      if (res.status === 429 && attempt < delays.length) continue;
-      if (!res.ok) {
-        console.log(`[image-proxy] ${res.status} for ${url.substring(0, 80)}`);
-        return null;
-      }
-      const contentType = res.headers.get("content-type") ?? "image/png";
-      const buffer = await res.arrayBuffer();
-      console.log(`[image-proxy] OK ${contentType} ${buffer.byteLength}bytes`);
-      return { buffer, contentType };
-    } catch (e) {
-      if (attempt === delays.length) {
-        console.log(`[image-proxy] Error: ${e instanceof Error ? e.message : "unknown"}`);
-        return null;
-      }
+type ImageResult = { stream: ReadableStream<Uint8Array>; contentType: string; contentLength: number };
+
+/**
+ * Token bucket rate limiter — 精确限制 5 请求/秒（飞书频控等级 6）
+ * 令牌不足时排队等待，避免触发飞书 99991400 限流。
+ */
+class TokenBucket {
+  private tokens: number;
+  private lastRefill: number;
+  private waitQueue: Array<() => void> = [];
+
+  constructor(private maxTokens: number, private refillPerSecond: number) {
+    this.tokens = maxTokens;
+    this.lastRefill = Date.now();
+  }
+
+  /** 消耗一个令牌，不够则等待 */
+  async consume(): Promise<void> {
+    this.refill();
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return;
     }
+    // 队列中等待
+    return new Promise((resolve) => {
+      this.waitQueue.push(resolve);
+    });
+  }
+
+  /** 释放一个令牌（请求完成后调用） */
+  release(): void {
+    this.tokens = Math.min(this.tokens + 1, this.maxTokens);
+    const next = this.waitQueue.shift();
+    if (next) next();
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = (now - this.lastRefill) / 1000;
+    const newTokens = Math.floor(elapsed * this.refillPerSecond);
+    if (newTokens > 0) {
+      this.tokens = Math.min(this.tokens + newTokens, this.maxTokens);
+      this.lastRefill = now;
+    }
+  }
+}
+
+const bucket = new TokenBucket(5, 5); // 最多 5 个令牌，每秒补充 5 个
+
+/**
+ * In-flight deduplication: 同一 URL 并发请求只 fetch 一次
+ */
+const inflightMap = new Map<string, Promise<ImageResult | null>>();
+
+async function fetchAsImageStream(
+  url: string,
+  headers: Record<string, string>,
+  timeout: number
+): Promise<ImageResult | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const res = await fetch(url, {
+      headers,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.log(`[image-proxy] ${res.status} for ${url.substring(0, 80)} — ${text.substring(0, 200)}`);
+      return null;
+    }
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.startsWith("image/")) {
+      console.log(`[image-proxy] Non-image content-type: ${contentType} for ${url.substring(0, 80)}`);
+      return null;
+    }
+
+    const contentLength = parseInt(res.headers.get("content-length") ?? "0", 10);
+    if (!res.body) return null;
+
+    console.log(`[image-proxy] OK ${contentType} ${contentLength}bytes (streaming)`);
+    return { stream: res.body, contentType, contentLength };
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "TimeoutError") {
+      console.log(`[image-proxy] Timeout for ${url.substring(0, 80)}`);
+    } else if (e instanceof DOMException && e.name === "AbortError") {
+      console.log(`[image-proxy] Aborted for ${url.substring(0, 80)}`);
+    } else {
+      console.log(`[image-proxy] Error: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+    return null;
+  }
+}
+
+/** 重试 + 指数退避 */
+async function fetchWithRetry(
+  url: string,
+  headers: Record<string, string>,
+  timeout: number,
+  retries: number
+): Promise<ImageResult | null> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(500 * Math.pow(2, attempt - 1), 4000);
+      console.log(`[image-proxy] retry ${attempt + 1}/${retries} for ${url.substring(0, 80)} — waiting ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    const result = await fetchAsImageStream(url, headers, timeout);
+    if (result) return result;
   }
   return null;
 }
 
 export async function GET(req: NextRequest) {
-  const b64 = req.nextUrl.searchParams.get("b64");
+  const url = req.nextUrl.searchParams.get("url") || undefined;
 
-  if (!b64) {
-    return NextResponse.json({ error: "Missing b64" }, { status: 400 });
+  if (!url) {
+    return NextResponse.json({ error: "No URL provided" }, { status: 400 });
   }
 
-  try {
-    const payload = JSON.parse(decodeURIComponent(atob(b64)));
-    const url: string | undefined = payload.url;
-    const tmpUrl: string | undefined = payload.tmpUrl;
-
-    if (!url && !tmpUrl) {
-      return NextResponse.json({ error: "No URL provided" }, { status: 400 });
+  // 去重：同一 URL 正在请求中则复用结果
+  if (inflightMap.has(url)) {
+    const result = await inflightMap.get(url)!;
+    if (result) {
+      return new NextResponse(result.stream, {
+        headers: {
+          "Content-Type": result.contentType,
+          "Content-Length": String(result.contentLength),
+          "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        },
+      });
     }
+    return NextResponse.json({ error: "Failed to fetch image" }, { status: 504 });
+  }
 
-    // Strategy 1: Bearer proxy on url (works for open.feishu.cn API URLs)
-    if (url) {
+  const promise = (async (): Promise<ImageResult | null> => {
+    // 令牌桶限流：确保每秒不超过 5 个请求到飞书
+    await bucket.consume();
+    try {
       const token = await getTenantAccessToken();
-      const result = await fetchAsImage(url, {
+      return await fetchWithRetry(url, {
         Authorization: `Bearer ${token}`,
-        Accept: "image/avif,image/webp,image/png,*/*",
-      });
-      if (result) {
-        return new NextResponse(result.buffer, {
-          headers: {
-            "Content-Type": result.contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
-      }
+        Accept: "image/avif,image/webp,image/png,image/*,*/*",
+      }, 60_000, 3);
+    } finally {
+      bucket.release();
     }
+  })();
 
-    // Strategy 2: tmp_url direct download (pre-signed, no auth needed)
-    if (tmpUrl) {
-      console.log(`[image-proxy] Falling back to tmp_url`);
-      const result = await fetchAsImage(tmpUrl, {
-        Accept: "image/avif,image/webp,image/png,*/*",
-      });
-      if (result) {
-        return new NextResponse(result.buffer, {
-          headers: {
-            "Content-Type": result.contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
-      }
-    }
+  inflightMap.set(url, promise);
+  promise.finally(() => inflightMap.delete(url));
 
-    console.error(`[image-proxy] All strategies failed`);
-    return NextResponse.json(
-      { error: "Failed to fetch image" },
-      { status: 502 }
-    );
-  } catch (e) {
-    console.error(`[image-proxy] EXCEPTION: ${e instanceof Error ? e.message : "unknown"}`);
-    return NextResponse.json(
-      { error: `Proxy error: ${e instanceof Error ? e.message : "unknown"}` },
-      { status: 500 }
-    );
+  const result = await promise;
+  if (result) {
+    return new NextResponse(result.stream, {
+      headers: {
+        "Content-Type": result.contentType,
+        "Content-Length": String(result.contentLength),
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+      },
+    });
   }
+
+  console.error(`[image-proxy] Failed to fetch image`);
+  return NextResponse.json({ error: "Failed to fetch image" }, { status: 504 });
 }

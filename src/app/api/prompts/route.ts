@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchPromptsFromFeishu } from "@/lib/feishu";
 
-const CACHE_TTL = 300; // 5 minutes
+const CACHE_TTL = 43_200; // 12 hours (tmp_url 有效期 24h)
 
 export async function GET() {
   try {

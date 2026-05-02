@@ -5,6 +5,7 @@ import PromptCard from "@/components/PromptCard";
 import PromptModal from "@/components/PromptModal";
 import SearchBar from "@/components/SearchBar";
 import type { PromptCardItem, PromptItem } from "@/types/prompt";
+import { batchPreloadUrls } from "@/lib/imageUrl";
 
 /** 哪些一级类型需要展示二级标签筛选 */
 const CATEGORIES_WITH_BUILDING = new Set(["效果图（低点）", "效果图（鸟瞰）"]);
@@ -56,12 +57,59 @@ export default function Home() {
   const [selectedPrompt, setSelectedPrompt] = useState<PromptItem | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const selectedIndexRef = useRef(-1);
+  const [preloadedUrls, setPreloadedUrls] = useState<Record<string, string>>({});
   const scrollPos = useRef(0);
 
+  // ── 加载性能计时 ──
+  const perfStartRef = useRef(performance.now());
+  const perfDataTimeRef = useRef(0);
+  const perfLoadedRef = useRef(new Set<string>());
+  const perfTenthRef = useRef(false); // 首屏标记：前 12 张加载完
+  const perfAllRef = useRef(false);   // 全部加载完标记
+
+  const handleCardImageLoaded = useCallback((cardKey: string) => {
+    perfLoadedRef.current.add(cardKey);
+    const count = perfLoadedRef.current.size;
+    const total = cards.length;
+
+    // 首屏计时：前 12 张（约两行）加载完即算首屏就绪
+    if (!perfTenthRef.current && count >= Math.min(12, total)) {
+      perfTenthRef.current = true;
+      const now = performance.now();
+      const elapsed = now - perfStartRef.current;
+      console.log(
+        `%c[PL-Perf] 👀 首屏就绪`,
+        "color:#f59e0b;font-weight:bold",
+        `| 数据: ${perfDataTimeRef.current.toFixed(0)}ms` +
+        `| 图片: ${(elapsed - perfDataTimeRef.current).toFixed(0)}ms` +
+        `| 合计: ${elapsed.toFixed(0)}ms` +
+        `| ${count}/${total} 张`
+      );
+    }
+
+    // 全部加载完
+    if (!perfAllRef.current && count >= total && total > 0) {
+      perfAllRef.current = true;
+      const now = performance.now();
+      const elapsed = now - perfStartRef.current;
+      console.log(
+        `%c[PL-Perf] ✅ 全部加载完成`,
+        "color:#22c55e;font-weight:bold",
+        `| 数据: ${perfDataTimeRef.current.toFixed(0)}ms` +
+        `| 图片: ${(elapsed - perfDataTimeRef.current).toFixed(0)}ms` +
+        `| 合计: ${elapsed.toFixed(0)}ms` +
+        `| ${total} 张`
+      );
+    }
+  }, [cards.length]);
+
   useEffect(() => {
+    const startFetch = performance.now();
     fetch("/api/prompts")
       .then((res) => res.json())
       .then((data) => {
+        perfDataTimeRef.current = performance.now() - startFetch;
+        console.log(`%c[PL-Perf] 📦 数据请求完成`, "color:#3b82f6;font-weight:bold", `${perfDataTimeRef.current.toFixed(0)}ms (共 ${(data.cards ?? []).length} 条卡片)`);
         const items = data.cards ?? [];
         setCards(items);
         setLoading(false);
@@ -71,6 +119,20 @@ export default function Home() {
         setLoading(false);
       });
   }, []);
+
+  // 数据到达后，后台预刷新所有图片的 24h 直链，不阻塞渲染
+  useEffect(() => {
+    if (cards.length === 0) return;
+    const files = cards.flatMap((c) => {
+      const r: { file_token: string; extra?: string }[] = [];
+      if (c.resultImage?.file_token) r.push({ file_token: c.resultImage.file_token, extra: c.resultImage.extra });
+      for (const ref of c.prompt.refImages ?? []) {
+        if (ref.file_token) r.push({ file_token: ref.file_token, extra: ref.extra });
+      }
+      return r;
+    });
+    batchPreloadUrls(files).then(setPreloadedUrls);
+  }, [cards]);
 
   // Reset secondary filters when category changes
   useEffect(() => {
@@ -188,7 +250,7 @@ export default function Home() {
                 Prompt Library
               </h1>
             </div>
-            <div className="flex-1 max-w-sm">
+            <div className="flex-1 max-w-xs">
               <SearchBar value={search} onChange={setSearch} />
             </div>
           </div>
@@ -291,6 +353,8 @@ export default function Home() {
                 card={card}
                 index={i}
                 onSelect={handleSelect}
+                onImageLoaded={handleCardImageLoaded}
+                preloadedUrls={preloadedUrls}
               />
             ))}
           </div>
@@ -311,6 +375,7 @@ export default function Home() {
         onNext={handleNext}
         onPrev={handlePrev}
         onClose={handleClose}
+        preloadedUrls={preloadedUrls}
       />
     </div>
   );

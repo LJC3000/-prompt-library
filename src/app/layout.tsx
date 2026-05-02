@@ -19,7 +19,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} antialiased`}>
-      <body>{children}</body>
+      <head>
+        <link rel="preconnect" href="https://open.feishu.cn" />
+      </head>
+      <body>
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: [
+              '"serviceWorker" in navigator &&',
+              "window.addEventListener('load', function() {",
+              "  navigator.serviceWorker.register('/sw.js').catch(function(e) {",
+              "    console.log('[SW] Registration failed:', e);",
+              "  });",
+              "});",
+            ].join(""),
+          }}
+        />
+      </body>
     </html>
   );
 }

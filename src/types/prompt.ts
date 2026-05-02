@@ -5,8 +5,12 @@ export interface FeishuFile {
   type: string;
   url?: string;
   tmp_url?: string;
+  /** extra 参数，用于 batch_get_tmp_download_url 鉴权（高级权限表格需要） */
+  extra?: string;
   /** Aspect ratio (width/height), set by backend */
-  aspectRatio?: number;
+  aspectRatio?: number | null;
+  /** 七牛云 CDN 地址（永久有效），由同步脚本自动填入 */
+  qiniu_url?: string;
 }
 
 export interface PromptItem {

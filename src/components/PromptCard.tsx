@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
-import { imageSrc, proxyUrl } from "@/lib/imageUrl";
+import { imageSrc, proxyUrl, refreshTmpUrl } from "@/lib/imageUrl";
 
 const MORANDI_COLORS = [
   "#d4c8b8",
@@ -28,15 +28,24 @@ interface PromptCardProps {
   card: PromptCardItem;
   index: number;
   onSelect: (prompt: PromptCardItem["prompt"], index: number) => void;
+  onImageLoaded?: (cardKey: string) => void;
+  preloadedUrls: Record<string, string>;
 }
 
-export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
-  const [ratio, setRatio] = useState<number | null>(null);
-  const [imgError, setImgError] = useState(false);
+export default function PromptCard({ card, index, onSelect, onImageLoaded, preloadedUrls }: PromptCardProps) {
+  const [ratio, setRatio] = useState<number | null>(card.resultImage?.aspectRatio ?? null);
+  // sourceMode: "primary"=tmp_url, "refreshing"=waiting, "proxy"=/api/image, "failed"=placeholder
+  const [sourceMode, setSourceMode] = useState<"primary" | "refreshing" | "proxy" | "failed">("primary");
+  const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sourceModeRef = useRef(sourceMode);
 
   const { prompt } = card;
+
+  // Keep ref in sync for timeout callback
+  useEffect(() => { sourceModeRef.current = sourceMode; }, [sourceMode]);
 
   // IntersectionObserver: only load image when card is near the viewport
   useEffect(() => {
@@ -55,23 +64,80 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Timeout: if image doesn't load within 45s, advance fallback
+  useEffect(() => {
+    if (shouldLoad && sourceMode !== "failed" && sourceMode !== "refreshing") {
+      loadTimeoutRef.current = setTimeout(() => {
+        const mode = sourceModeRef.current;
+        if (mode === "primary") {
+          triggerRefresh();
+        } else {
+          setSourceMode("failed");
+        }
+      }, 10_000);
+    }
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    };
+  }, [shouldLoad, sourceMode]);
+
+  const triggerRefresh = useCallback(() => {
+    if (!card.resultImage?.file_token) {
+      setSourceMode("proxy");
+      return;
+    }
+    setSourceMode("refreshing");
+    refreshTmpUrl(card.resultImage.file_token, card.resultImage.extra).then((url) => {
+      if (url) {
+        setRefreshedUrl(url);
+        setSourceMode("primary");
+      } else {
+        setSourceMode("proxy");
+      }
+    });
+  }, [card.resultImage]);
+
   const handleLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
       const img = e.currentTarget;
       setRatio(img.naturalWidth / img.naturalHeight);
+      onImageLoaded?.(card.cardKey);
     },
-    []
+    [onImageLoaded, card.cardKey]
   );
+
+  const handleError = useCallback(() => {
+    if (sourceMode === "primary") {
+      triggerRefresh();
+    } else if (sourceMode === "proxy") {
+      setSourceMode("failed");
+    }
+    // In "refreshing" mode, do nothing — wait for the refresh promise
+  }, [sourceMode, triggerRefresh]);
 
   const bgColor = colorFromKey(card.cardKey);
 
-  // First try: use tmp_url directly (fast, no proxy).
-  // On error: fall back to proxied Bearer URL.
-  const [useProxy, setUseProxy] = useState(false);
-  const imgSrc =
-    shouldLoad && card.resultImage && !imgError
-      ? (useProxy ? proxyUrl(card.resultImage) : imageSrc(card.resultImage))
-      : null;
+  // Build image source based on current fallback mode
+  const imgSrc = ((): string | undefined | null => {
+    if (!shouldLoad || !card.resultImage || sourceMode === "failed") return null;
+    // Preloaded 24h URL — skip the expired tmp_url entirely
+    const preloaded = preloadedUrls[card.resultImage.file_token];
+    if (preloaded) return preloaded;
+    if (sourceMode === "refreshing") return null;
+    if (sourceMode === "primary") {
+      return refreshedUrl ?? imageSrc(card.resultImage);
+    }
+    // proxy mode
+    return proxyUrl(card.resultImage);
+  })();
+
 
   return (
     <motion.div
@@ -115,7 +181,7 @@ export default function PromptCard({ card, index, onSelect }: PromptCardProps) {
               loading="lazy"
               className={`w-full align-middle ${ratio ? "block" : "absolute opacity-0"}`}
               onLoad={handleLoad}
-              onError={() => { if (useProxy) setImgError(true); else setUseProxy(true); }}
+              onError={handleError}
             />
           </div>
         ) : (
