@@ -77,7 +77,7 @@ function recordToPromptItem(record: any): PromptItem {
   const title = fields["项目名称"] ?? "Untitled";
   const imageTypes: string[] = Array.isArray(fields["图片类型"]) ? fields["图片类型"] : [];
 
-  // 解析七牛映射
+  // 解析七牛映射，由 sync-qiniu.mjs 写入
   // 新格式：{"file_token": {"url": "https://...", "w": 1920, "h": 1080}}
   // 旧格式（兼容）：{"file_token": "https://..."}
   let qiniuMap: Record<string, string | { url: string; w?: number; h?: number }> = {};
