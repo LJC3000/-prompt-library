@@ -195,19 +195,19 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+          transition={{ type: "spring", stiffness: 200, damping: 28 }}
           className="fixed inset-0 bg-black/40 backdrop-blur-sm"
           onClick={onClose}
         />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 16 }}
+          initial={{ opacity: 0, scale: 0.88, y: 40 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 16 }}
-          transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+          exit={{ opacity: 0, scale: 0.88, y: 40 }}
+          transition={{ type: "spring", stiffness: 260, damping: 26, mass: 0.8 }}
           className="relative z-10 mx-4"
           style={{
-            willChange: "transform",
+            willChange: "transform, opacity",
             marginTop: "8vh",
             marginBottom: "5vh",
             maxWidth: isTall ? undefined : "48rem",
