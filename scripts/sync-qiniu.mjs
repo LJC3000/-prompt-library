@@ -309,6 +309,21 @@ async function downloadFromTmpUrl(url) {
   throw lastError;
 }
 
+// ── 七牛图片信息 ──────────────────────────────
+
+/** 通过七牛 ?imageInfo 接口获取图片宽高，不下载整张图 */
+async function getImageInfo(qiniuUrl) {
+  try {
+    const res = await fetch(qiniuUrl + "?imageInfo", { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return null;
+    const info = await res.json();
+    if (info.width && info.height) return { w: info.width, h: info.height };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── 主流程 ────────────────────────────────────
 
 async function main() {
@@ -385,7 +400,24 @@ async function main() {
 
   console.log(`\n[sync] 📊 总计: ${stats.total} 个文件 (${stats.new} 新 / ${stats.skipped} 已同步)`);
 
-  if (stats.new === 0) {
+  // ── 升级存量 string 格式映射为结构化格式，并获取宽高 ──
+  let migrated = 0;
+  for (const [recId, mapping] of recordMappings) {
+    for (const [token, value] of Object.entries(mapping)) {
+      if (typeof value === "string") {
+        const info = await getImageInfo(value).catch(() => null);
+        mapping[token] = info ? { url: value, w: info.w, h: info.h } : { url: value };
+        migrated++;
+        localBackup[recId] = mapping;
+      }
+    }
+  }
+  if (migrated > 0) {
+    saveLocalBackup(localBackup);
+    console.log(`[sync] 🔄 升级 ${migrated} 个存量映射为结构化格式`);
+  }
+
+  if (stats.new === 0 && migrated === 0) {
     console.log("[sync] ✨ 没有新文件，无需同步");
     console.log(`[sync] ⏱️  耗时: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
     return;
@@ -422,8 +454,8 @@ async function main() {
       processed++;
 
       if (uploadedMap.has(file.file_token)) {
-        const qiniuUrl = uploadedMap.get(file.file_token);
-        recordMappings.get(recordId)[file.file_token] = qiniuUrl;
+        const existing = uploadedMap.get(file.file_token);
+        recordMappings.get(recordId)[file.file_token] = existing;
         console.log(`[sync] ⏭️  [${processed}/${stats.new}] ${file.file_token} → 复用已上传`);
         stats.success++;
         continue;
@@ -444,15 +476,21 @@ async function main() {
         console.log(`[sync] ⬆️  [${processed}/${stats.new}] 上传 ${key} (${(buffer.byteLength / 1024).toFixed(0)} KB)`);
         const qiniuUrl = await uploadToQiniu(buffer, key, cfg.qiniu);
 
-        uploadedMap.set(file.file_token, qiniuUrl);
-        recordMappings.get(recordId)[file.file_token] = qiniuUrl;
+        // 获取图片宽高并存为结构化数据
+        const info = await getImageInfo(qiniuUrl);
+        const mapped = info
+          ? { url: qiniuUrl, w: info.w, h: info.h }
+          : { url: qiniuUrl };
+
+        uploadedMap.set(file.file_token, mapped);
+        recordMappings.get(recordId)[file.file_token] = mapped;
         stats.success++;
 
         // 每上传成功一个就立刻存本地备份
         localBackup[recordId] = recordMappings.get(recordId);
         if (processed % 5 === 0) saveLocalBackup(localBackup);
 
-        console.log(`[sync] ✅ [${processed}/${stats.new}] ${file.file_token} → ${qiniuUrl}`);
+        console.log(`[sync] ✅ [${processed}/${stats.new}] ${file.file_token} → ${qiniuUrl} (${info ? info.w + '×' + info.h : '尺寸未知'})`);
       } catch (e) {
         stats.failed++;
         console.log(`[sync] ❌ [${processed}/${stats.new}] ${file.file_token} → ${e instanceof Error ? e.message : "unknown"}`);

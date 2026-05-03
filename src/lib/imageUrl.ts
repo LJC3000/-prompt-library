@@ -24,14 +24,34 @@ export function proxyUrl(file: FeishuFile | null | undefined): string | null {
 }
 
 /**
- * Best-effort image source for a FeishuFile.
- * Priority: 七牛永久URL > 飞书tmp_url > API代理
+ * Full-resolution image source for Modal.
+ * Priority: 飞书tmp_url(HTTPS直连) > 七牛代理(fallback) > API代理
  */
 export function imageSrc(file: FeishuFile | null | undefined): string | undefined {
   if (!file) return undefined;
-  // 七牛云永久链接（优先），自动转 WebP
-  if (file.qiniu_url) return toWebp(file.qiniu_url);
   if (file.tmp_url) return file.tmp_url;
+  if (file.qiniu_url) {
+    if (file.qiniu_url.startsWith("https://")) return toWebp(file.qiniu_url);
+    return `/api/qiniu-proxy?url=${encodeURIComponent(toWebp(file.qiniu_url))}`;
+  }
+  return proxyUrl(file) || undefined;
+}
+
+/**
+ * Thumbnail for card grid — Qiniu URL 带上缩略图参数，减少传输量。
+ * 飞书 tmp_url 无法控制尺寸，走直连；七牛走代理 + thumbnail 400px。
+ */
+export function cardThumbSrc(file: FeishuFile | null | undefined): string | undefined {
+  if (!file) return undefined;
+  if (file.tmp_url) return file.tmp_url;
+  if (file.qiniu_url) {
+    if (file.qiniu_url.startsWith("https://")) {
+      return toWebp(file.qiniu_url) + "&imageMogr2/thumbnail/400x";
+    }
+    // 七牛 HTTP → 代理 + thumbnail + WebP 一步到位
+    const thumbUrl = file.qiniu_url + "?imageMogr2/thumbnail/400x/format/webp";
+    return `/api/qiniu-proxy?url=${encodeURIComponent(thumbUrl)}`;
+  }
   return proxyUrl(file) || undefined;
 }
 

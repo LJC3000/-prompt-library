@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
-import { imageSrc, proxyUrl, refreshTmpUrl } from "@/lib/imageUrl";
+import { cardThumbSrc, proxyUrl, refreshTmpUrl } from "@/lib/imageUrl";
 
 const MORANDI_COLORS = [
   "#d4c8b8",
@@ -132,7 +132,7 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
     if (preloaded) return preloaded;
     if (sourceMode === "refreshing") return null;
     if (sourceMode === "primary") {
-      return refreshedUrl ?? imageSrc(card.resultImage);
+      return refreshedUrl ?? cardThumbSrc(card.resultImage);
     }
     // proxy mode
     return proxyUrl(card.resultImage);
