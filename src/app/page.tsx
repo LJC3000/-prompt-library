@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { LayoutGroup } from "framer-motion";
 import PromptCard from "@/components/PromptCard";
 import PromptModal from "@/components/PromptModal";
 import SearchBar from "@/components/SearchBar";
@@ -56,6 +57,8 @@ export default function Home() {
   const [selectedDiagram, setSelectedDiagram] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptItem | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [selectedCardKey, setSelectedCardKey] = useState<string | null>(null);
+  const [selectedImageToken, setSelectedImageToken] = useState<string | null>(null);
   const selectedIndexRef = useRef(-1);
   const [preloadedUrls, setPreloadedUrls] = useState<Record<string, string>>({});
   const scrollPos = useRef(0);
@@ -194,7 +197,7 @@ export default function Home() {
     });
   }, [cards, search, selectedCategory, selectedBuilding, selectedWeather, selectedDiagram]);
 
-  const handleSelect = useCallback((prompt: PromptItem, index: number) => {
+  const handleSelect = useCallback((prompt: PromptItem, index: number, cardKey: string, imageToken: string) => {
     scrollPos.current = window.scrollY;
 
     const scrollbarWidth =
@@ -205,12 +208,16 @@ export default function Home() {
 
     setSelectedPrompt(structuredClone(prompt));
     setSelectedIndex(index);
+    setSelectedCardKey(cardKey);
+    setSelectedImageToken(imageToken);
     selectedIndexRef.current = index;
   }, []);
 
   const handleClose = useCallback(() => {
     setSelectedPrompt(null);
     setSelectedIndex(-1);
+    setSelectedCardKey(null);
+    setSelectedImageToken(null);
     selectedIndexRef.current = -1;
 
     requestAnimationFrame(() => {
@@ -224,8 +231,11 @@ export default function Home() {
   const handleNext = useCallback(() => {
     const next = selectedIndexRef.current + 1;
     if (next < filtered.length) {
-      setSelectedPrompt(structuredClone(filtered[next].prompt));
+      const item = filtered[next];
+      setSelectedPrompt(structuredClone(item.prompt));
       setSelectedIndex(next);
+      setSelectedCardKey(item.cardKey);
+      setSelectedImageToken(item.resultImage?.file_token ?? null);
       selectedIndexRef.current = next;
     }
   }, [filtered]);
@@ -233,8 +243,11 @@ export default function Home() {
   const handlePrev = useCallback(() => {
     const next = selectedIndexRef.current - 1;
     if (next >= 0) {
-      setSelectedPrompt(structuredClone(filtered[next].prompt));
+      const item = filtered[next];
+      setSelectedPrompt(structuredClone(item.prompt));
       setSelectedIndex(next);
+      setSelectedCardKey(item.cardKey);
+      setSelectedImageToken(item.resultImage?.file_token ?? null);
       selectedIndexRef.current = next;
     }
   }, [filtered]);
@@ -329,6 +342,7 @@ export default function Home() {
       </header>
 
       {/* Main content */}
+      <LayoutGroup>
       <main className="mx-auto max-w-none px-3 sm:px-4 lg:px-5 py-6">
         {loading ? (
           <div className="flex items-center justify-center py-32">
@@ -352,6 +366,7 @@ export default function Home() {
                 key={card.cardKey}
                 card={card}
                 index={i}
+                isSelected={card.cardKey === selectedCardKey}
                 onSelect={handleSelect}
                 onImageLoaded={handleCardImageLoaded}
                 preloadedUrls={preloadedUrls}
@@ -370,6 +385,8 @@ export default function Home() {
 
       <PromptModal
         prompt={selectedPrompt}
+        selectedCardKey={selectedCardKey}
+        selectedImageToken={selectedImageToken}
         hasNext={selectedIndex < filtered.length - 1}
         hasPrev={selectedIndex > 0}
         onNext={handleNext}
@@ -377,6 +394,7 @@ export default function Home() {
         onClose={handleClose}
         preloadedUrls={preloadedUrls}
       />
+      </LayoutGroup>
     </div>
   );
 }

@@ -27,12 +27,13 @@ function colorFromKey(key: string): string {
 interface PromptCardProps {
   card: PromptCardItem;
   index: number;
-  onSelect: (prompt: PromptCardItem["prompt"], index: number) => void;
+  isSelected?: boolean;
+  onSelect: (prompt: PromptCardItem["prompt"], index: number, cardKey: string, imageToken: string) => void;
   onImageLoaded?: (cardKey: string) => void;
   preloadedUrls: Record<string, string>;
 }
 
-export default function PromptCard({ card, index, onSelect, onImageLoaded, preloadedUrls }: PromptCardProps) {
+export default function PromptCard({ card, index, isSelected, onSelect, onImageLoaded, preloadedUrls }: PromptCardProps) {
   const [ratio, setRatio] = useState<number | null>(card.resultImage?.aspectRatio ?? null);
   // sourceMode: "primary"=tmp_url, "refreshing"=waiting, "proxy"=/api/image, "failed"=placeholder
   const [sourceMode, setSourceMode] = useState<"primary" | "refreshing" | "proxy" | "failed">("primary");
@@ -147,12 +148,13 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
       transition={{ duration: 0.35, delay: Math.min(index * 0.02, 0.6), ease: "easeOut" }}
       className="break-inside-avoid mb-6"
     >
-      <motion.button
-        onClick={() => onSelect(prompt, index)}
+      <motion.div
+        layoutId={`card-${card.cardKey}`}
+        onClick={() => onSelect(prompt, index, card.cardKey, card.resultImage?.file_token ?? "")}
         whileHover={{ scale: 1.03 }}
         transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-        style={{ willChange: "transform" }}
-        className="w-full text-left group relative block overflow-hidden rounded-xl bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.1)]"
+        style={{ willChange: "transform", opacity: isSelected ? 0 : 1 }}
+        className="w-full text-left group relative block overflow-hidden rounded-xl bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer"
       >
         {imgSrc ? (
           <div
@@ -175,7 +177,8 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
                 </svg>
               </div>
             )}
-            <img
+            <motion.img
+              layoutId={card.resultImage?.file_token ? `image-${card.resultImage.file_token}` : undefined}
               src={imgSrc}
               alt={prompt.title}
               loading="lazy"
@@ -205,7 +208,7 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
             </p>
           </div>
         </div>
-      </motion.button>
+      </motion.div>
     </motion.div>
   );
 }
