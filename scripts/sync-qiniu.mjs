@@ -400,7 +400,24 @@ async function main() {
 
   console.log(`\n[sync] 📊 总计: ${stats.total} 个文件 (${stats.new} 新 / ${stats.skipped} 已同步)`);
 
-  if (stats.new === 0) {
+  // ── 升级存量 string 格式映射为结构化格式，并获取宽高 ──
+  let migrated = 0;
+  for (const [recId, mapping] of recordMappings) {
+    for (const [token, value] of Object.entries(mapping)) {
+      if (typeof value === "string") {
+        const info = await getImageInfo(value).catch(() => null);
+        mapping[token] = info ? { url: value, w: info.w, h: info.h } : { url: value };
+        migrated++;
+        localBackup[recId] = mapping;
+      }
+    }
+  }
+  if (migrated > 0) {
+    saveLocalBackup(localBackup);
+    console.log(`[sync] 🔄 升级 ${migrated} 个存量映射为结构化格式`);
+  }
+
+  if (stats.new === 0 && migrated === 0) {
     console.log("[sync] ✨ 没有新文件，无需同步");
     console.log(`[sync] ⏱️  耗时: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
     return;
