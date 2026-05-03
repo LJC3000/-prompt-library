@@ -25,17 +25,18 @@ export function proxyUrl(file: FeishuFile | null | undefined): string | null {
 
 /**
  * Best-effort image source for a FeishuFile.
- * Priority: 七牛永久URL(HTTPS直接) > 七牛永久URL(HTTP走代理) > 飞书tmp_url > API代理
+ * Priority: 飞书tmp_url(HTTPS直连) > 七牛代理(fallback) > API代理
  */
 export function imageSrc(file: FeishuFile | null | undefined): string | undefined {
   if (!file) return undefined;
+  // 飞书 tmp_url 走 CDN 直连最快，不需要 Vercel 中转
+  if (file.tmp_url) return file.tmp_url;
   if (file.qiniu_url) {
     // 七牛 HTTPS（未来自定义域名）→ 直接引用
     if (file.qiniu_url.startsWith("https://")) return toWebp(file.qiniu_url);
-    // 七牛 HTTP（测试域名）→ 走 Vercel 代理避免混合内容
+    // 七牛 HTTP → 走 Vercel 代理
     return `/api/qiniu-proxy?url=${encodeURIComponent(toWebp(file.qiniu_url))}`;
   }
-  if (file.tmp_url) return file.tmp_url;
   return proxyUrl(file) || undefined;
 }
 
