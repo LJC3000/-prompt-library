@@ -228,7 +228,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
             </button>
 
             {/* === Hero: generated result === */}
-            {mainImgSrc && !isTall && (
+            {!isTall && prompt.results?.[0] && (
               <div
                 className="w-full border-b border-zinc-100 relative group"
                 style={{
@@ -236,30 +236,34 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   aspectRatio: mainImgRatio ? String(mainImgRatio) : "4/3",
                 }}
               >
-                <img
-                  src={mainImgSrc}
-                  alt={prompt.title}
-                  className="w-full h-auto block transition-all duration-300 cursor-pointer"
-                  style={{ opacity: mainImgLoaded ? 1 : 0 }}
-                  onLoad={handleMainLoad}
-                  onError={handleMainError}
-                  onClick={() => setViewerSrc(mainImgSrc)}
-                />
+                {mainImgSrc && (
+                  <img
+                    src={mainImgSrc}
+                    alt={prompt.title}
+                    className="w-full h-auto block transition-all duration-300 cursor-pointer"
+                    style={{ opacity: mainImgLoaded ? 1 : 0 }}
+                    onLoad={handleMainLoad}
+                    onError={handleMainError}
+                    onClick={() => setViewerSrc(mainImgSrc)}
+                  />
+                )}
                 {/* Hover hint */}
-                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-black/50 text-white/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
-                  <span>查看原图</span>
-                </div>
+                {mainImgSrc && (
+                  <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-black/50 text-white/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      <line x1="11" y1="8" x2="11" y2="14" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                    <span>查看原图</span>
+                  </div>
+                )}
               </div>
             )}
 
             {/* === Two-column layout for tall images === */}
-            {mainImgSrc && isTall && (
+            {isTall && prompt.results?.[0] && (
               <div
                 className="relative group shrink-0 h-full"
                 style={{
@@ -267,25 +271,29 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                   ...(mainImgRatio ? { aspectRatio: String(mainImgRatio) } : {}),
                 }}
               >
-                <img
-                  src={mainImgSrc}
-                  alt={prompt.title}
-                  className="h-full w-auto block shrink-0 border-r border-zinc-100 transition-opacity duration-300 cursor-pointer"
-                  style={{ opacity: mainImgLoaded ? 1 : 0 }}
-                  onLoad={handleMainLoad}
-                  onError={handleMainError}
-                  onClick={() => setViewerSrc(mainImgSrc)}
-                />
+                {mainImgSrc && (
+                  <img
+                    src={mainImgSrc}
+                    alt={prompt.title}
+                    className="h-full w-auto block shrink-0 border-r border-zinc-100 transition-opacity duration-300 cursor-pointer"
+                    style={{ opacity: mainImgLoaded ? 1 : 0 }}
+                    onLoad={handleMainLoad}
+                    onError={handleMainError}
+                    onClick={() => setViewerSrc(mainImgSrc)}
+                  />
+                )}
                 {/* Hover hint */}
-                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-black/50 text-white/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
-                  </svg>
-                  <span>查看原图</span>
-                </div>
+                {mainImgSrc && (
+                  <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-black/50 text-white/80 px-2.5 py-1.5 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      <line x1="11" y1="8" x2="11" y2="14" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                    <span>查看原图</span>
+                  </div>
+                )}
               </div>
             )}
 
