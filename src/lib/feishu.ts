@@ -77,8 +77,10 @@ function recordToPromptItem(record: any): PromptItem {
   const title = fields["项目名称"] ?? "Untitled";
   const imageTypes: string[] = Array.isArray(fields["图片类型"]) ? fields["图片类型"] : [];
 
-  // 解析七牛映射：{"file_token": "https://域名/key.png", ...}
-  let qiniuMap: Record<string, string> = {};
+  // 解析七牛映射
+  // 新格式：{"file_token": {"url": "https://...", "w": 1920, "h": 1080}}
+  // 旧格式（兼容）：{"file_token": "https://..."}
+  let qiniuMap: Record<string, string | { url: string; w?: number; h?: number }> = {};
   const rawMapping = fields["七牛映射"] ?? "";
   if (typeof rawMapping === "string" && rawMapping.trim()) {
     try { qiniuMap = JSON.parse(rawMapping); } catch { /* 忽略解析错误 */ }
@@ -87,7 +89,16 @@ function recordToPromptItem(record: any): PromptItem {
   function withQiniu(files: FeishuFile[]): FeishuFile[] {
     return files.map((f) => {
       const qiniu = qiniuMap[f.file_token];
-      return qiniu ? { ...f, qiniu_url: qiniu } : f;
+      if (qiniu) {
+        const qiniuUrl = typeof qiniu === "string" ? qiniu : qiniu.url;
+        const result: FeishuFile = { ...f, qiniu_url: qiniuUrl };
+        // 从七牛数据设置精确宽高比
+        if (typeof qiniu !== "string" && qiniu.w && qiniu.h) {
+          result.aspectRatio = qiniu.w / qiniu.h;
+        }
+        return result;
+      }
+      return f;
     });
   }
 
