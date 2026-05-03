@@ -101,7 +101,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
         setMainImgRatio(cached.ratio);
       } else {
         setMainImgLoaded(false);
-        setMainImgRatio(null);
+        setMainImgRatio(prompt.results?.[0]?.aspectRatio ?? null);
       }
     }
   }, [prompt]);
@@ -231,7 +231,10 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
             {mainImgSrc && !isTall && (
               <div
                 className="w-full border-b border-zinc-100 relative group"
-                style={{ backgroundColor: colorFromKey(prompt.id) }}
+                style={{
+                  backgroundColor: colorFromKey(prompt.id),
+                  aspectRatio: mainImgRatio ? String(mainImgRatio) : "4/3",
+                }}
               >
                 <img
                   src={mainImgSrc}
@@ -257,12 +260,18 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
 
             {/* === Two-column layout for tall images === */}
             {mainImgSrc && isTall && (
-              <div className="relative group shrink-0 h-full">
+              <div
+                className="relative group shrink-0 h-full"
+                style={{
+                  backgroundColor: colorFromKey(prompt.id),
+                  ...(mainImgRatio ? { aspectRatio: String(mainImgRatio) } : {}),
+                }}
+              >
                 <img
                   src={mainImgSrc}
                   alt={prompt.title}
                   className="h-full w-auto block shrink-0 border-r border-zinc-100 transition-opacity duration-300 cursor-pointer"
-                  style={{ opacity: mainImgLoaded ? 1 : 0, backgroundColor: colorFromKey(prompt.id) }}
+                  style={{ opacity: mainImgLoaded ? 1 : 0 }}
                   onLoad={handleMainLoad}
                   onError={handleMainError}
                   onClick={() => setViewerSrc(mainImgSrc)}
@@ -298,8 +307,11 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                             return (
                               <div
                                 key={file.file_token || `ref_${i}`}
-                                className="rounded-xl overflow-hidden ring-1 ring-zinc-100 relative group/ref min-h-[100px]"
-                                style={{ backgroundColor: MORANDI_COLORS[i % MORANDI_COLORS.length] }}
+                                className="rounded-xl overflow-hidden ring-1 ring-zinc-100 relative group/ref"
+                                style={{
+                                  backgroundColor: MORANDI_COLORS[i % MORANDI_COLORS.length],
+                                  aspectRatio: file.aspectRatio ? String(file.aspectRatio) : "4/3",
+                                }}
                               >
                                 <img
                                   src={refSrc}
@@ -413,7 +425,11 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
                             return (
                               <div
                                 key={file.file_token || `ref_${i}`}
-                                className="flex-1 min-w-0 rounded-sm overflow-hidden ring-1 ring-zinc-100 relative group/ref min-h-[60px]"
+                                className="flex-1 min-w-0 rounded-sm overflow-hidden ring-1 ring-zinc-100 relative group/ref"
+                                style={{
+                                  backgroundColor: MORANDI_COLORS[i % MORANDI_COLORS.length],
+                                  aspectRatio: file.aspectRatio ? String(file.aspectRatio) : "4/3",
+                                }}
                               >
                                 <img
                                   src={refSrc}
