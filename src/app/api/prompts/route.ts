@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { fetchPromptsFromFeishu } from "@/lib/feishu";
 
-// 内存缓存：避免每次请求都等飞书 6 秒
+export const revalidate = 300; // CDN 边缘缓存 5 分钟，连 Lambda 都不触发
+
+// 内存热备份：CDN 未命中时跳过飞书直接返回
 let cache: { data: unknown; ts: number } | null = null;
 const CACHE_TTL = 300_000; // 5 分钟
 
