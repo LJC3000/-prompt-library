@@ -187,7 +187,7 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
         ) : (
           <div
             className="w-full flex items-center justify-center"
-            style={{ aspectRatio: "4/3", backgroundColor: bgColor }}
+            style={{ aspectRatio: ratio ? String(ratio) : "4/3", backgroundColor: bgColor }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/40">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
