@@ -34,16 +34,20 @@ export default function GlobalHeader({
 
   return (
     <motion.header
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 transition-[border-radius] duration-300 ${
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      layout
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 ${
         hasContent ? "rounded-3xl" : "rounded-full"
       }`}
-      style={{ width: "calc(100% - 2rem)", maxWidth: "64rem" }}
+      style={{ width: "66.67%", maxWidth: "80rem" }}
     >
       {/* Row 1: Logo + Primary filters + Search */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
         <div className="shrink-0 pl-2">
-          <span className="text-lg font-semibold tracking-tight text-zinc-900">
+          <span className="text-2xl font-semibold tracking-tight text-zinc-900">
             Prompt Library
           </span>
         </div>
@@ -132,16 +136,17 @@ export default function GlobalHeader({
         )}
       </AnimatePresence>
 
-      {/* Secondary filter sub-panel — fade in/out below main row */}
+      {/* Secondary filter sub-panel — dropdown below main row */}
       <AnimatePresence>
         {showSecondary && hasFilters && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="px-4 pb-3"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="overflow-hidden"
           >
+            <div className="px-4 pb-3">
             <div className="border-t border-zinc-200/40 pt-2.5 pl-6 space-y-2">
             {showBuildingFilters && allBuildingTypes.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
@@ -176,6 +181,7 @@ export default function GlobalHeader({
                 ))}
               </div>
             )}
+            </div>
           </div>
         </motion.div>
       )}
