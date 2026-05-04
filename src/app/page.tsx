@@ -364,7 +364,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-zinc-100">
         <div className="mx-auto max-w-none px-6 py-6 text-center text-sm text-zinc-300">
-          JGY Prompt Library v1.0
+          Prompt Library v1.0 @蜗牛3点0 · lifelike3000@gmail.com
         </div>
       </footer>
 
