@@ -42,7 +42,7 @@ export default function GlobalHeader({
       }`}
       style={{ width: "80%", maxWidth: "96rem" }}
     >
-      {/* Row 1: Logo (left) | Primary filters | Spacer | Search (right) */}
+      {/* Row 1: Logo (left) | Primary filters (left-aligned) | Spacer | Search (right) */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
         <div className="w-44 shrink-0 pl-2">
@@ -53,7 +53,7 @@ export default function GlobalHeader({
 
         {/* Primary filters — left-aligned, spacer pushes search right */}
         {hasFilters && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 ml-4">
             <PillBtn
               active={selectedCategory === null}
               onClick={() => onCategoryChange(null)}
@@ -149,7 +149,7 @@ export default function GlobalHeader({
                 <div className="w-44 shrink-0 text-right pr-4">
                   <span className="text-xs font-medium text-zinc-400">建筑类型</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 ml-4">
                   <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} size="small">全部</PillBtn>
                   {allBuildingTypes.map((t) => (
                     <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} size="small">{t}</PillBtn>
@@ -162,7 +162,7 @@ export default function GlobalHeader({
                 <div className="w-44 shrink-0 text-right pr-4">
                   <span className="text-xs font-medium text-zinc-400">光影天气</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 ml-4">
                   <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} size="small">全部</PillBtn>
                   {allWeatherTypes.map((t) => (
                     <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} size="small">{t}</PillBtn>
@@ -175,7 +175,7 @@ export default function GlobalHeader({
                 <div className="w-44 shrink-0 text-right pr-4">
                   <span className="text-xs font-medium text-zinc-400">分析图类型</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 ml-4">
                   <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} size="small">全部</PillBtn>
                   {allDiagramTypes.map((t) => (
                     <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} size="small">{t}</PillBtn>
