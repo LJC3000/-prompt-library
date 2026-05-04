@@ -42,7 +42,7 @@ export default function GlobalHeader({
       }`}
       style={{ width: "80%", maxWidth: "96rem" }}
     >
-      {/* Row 1: Logo (left) | Primary filters (center) | Search (right) */}
+      {/* Row 1: Logo (left) | Primary filters | Spacer | Search (right) */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
         <div className="w-44 shrink-0 pl-2">
@@ -51,30 +51,29 @@ export default function GlobalHeader({
           </span>
         </div>
 
-        {/* Primary filters — centered */}
-        {hasFilters ? (
-          <div className="flex-1 flex justify-center">
-            <div className="flex flex-wrap items-center justify-center gap-1.5">
+        {/* Primary filters — left-aligned to match secondary */}
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PillBtn
+              active={selectedCategory === null}
+              onClick={() => onCategoryChange(null)}
+            >
+              全部
+            </PillBtn>
+            {categories.map((cat) => (
               <PillBtn
-                active={selectedCategory === null}
-                onClick={() => onCategoryChange(null)}
+                key={cat}
+                active={selectedCategory === cat}
+                onClick={() => onCategoryChange(cat)}
               >
-                全部
+                {cat}
               </PillBtn>
-              {categories.map((cat) => (
-                <PillBtn
-                  key={cat}
-                  active={selectedCategory === cat}
-                  onClick={() => onCategoryChange(cat)}
-                >
-                  {cat}
-                </PillBtn>
-              ))}
-            </div>
+            ))}
           </div>
-        ) : (
-          <div className="flex-1" />
         )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Desktop search — grey pill */}
         <div className="hidden md:block shrink-0">
@@ -92,7 +91,7 @@ export default function GlobalHeader({
               placeholder="搜索..."
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full rounded-full bg-zinc-100 border-0 py-2 pl-9 pr-4 text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-300"
+              className="w-full rounded-xl bg-zinc-100 border-0 py-2 pl-9 pr-4 text-sm text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-300"
             />
           </div>
         </div>
@@ -138,6 +137,7 @@ export default function GlobalHeader({
       <AnimatePresence>
         {showSecondary && hasFilters && (
           <motion.div
+            layout
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
