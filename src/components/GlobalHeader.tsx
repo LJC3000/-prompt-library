@@ -40,40 +40,41 @@ export default function GlobalHeader({
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 transition-[border-radius] duration-300 ${
         hasContent ? "rounded-3xl" : "rounded-full"
       }`}
-      style={{ width: "66.67%", maxWidth: "80rem" }}
+      style={{ width: "80%", maxWidth: "96rem" }}
     >
-      {/* Row 1: Logo + Primary filters + Search */}
+      {/* Row 1: Logo (left) | Primary filters (center) | Search (right) */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
-        <div className="shrink-0 pl-2">
+        <div className="w-44 shrink-0 pl-2">
           <span className="text-2xl font-semibold tracking-tight text-zinc-900">
             Prompt Library
           </span>
         </div>
 
-        {/* Primary filters — inline with logo */}
-        {hasFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 ml-2">
-            <PillBtn
-              active={selectedCategory === null}
-              onClick={() => onCategoryChange(null)}
-            >
-              全部
-            </PillBtn>
-            {categories.map((cat) => (
+        {/* Primary filters — centered */}
+        {hasFilters ? (
+          <div className="flex-1 flex justify-center">
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
               <PillBtn
-                key={cat}
-                active={selectedCategory === cat}
-                onClick={() => onCategoryChange(cat)}
+                active={selectedCategory === null}
+                onClick={() => onCategoryChange(null)}
               >
-                {cat}
+                全部
               </PillBtn>
-            ))}
+              {categories.map((cat) => (
+                <PillBtn
+                  key={cat}
+                  active={selectedCategory === cat}
+                  onClick={() => onCategoryChange(cat)}
+                >
+                  {cat}
+                </PillBtn>
+              ))}
+            </div>
           </div>
+        ) : (
+          <div className="flex-1" />
         )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
 
         {/* Desktop search — grey pill */}
         <div className="hidden md:block shrink-0">
@@ -144,10 +145,10 @@ export default function GlobalHeader({
             className="overflow-hidden"
           >
             <div className="px-4 pb-3">
-            <div className="border-t border-zinc-200/40 pt-2.5 pl-6 space-y-2">
+            <div className="border-t border-zinc-200/40 pt-2.5 space-y-2">
             {showBuildingFilters && allBuildingTypes.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
                   建筑类型
                 </span>
                 <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} size="small">全部</PillBtn>
@@ -158,7 +159,7 @@ export default function GlobalHeader({
             )}
             {showBuildingFilters && allWeatherTypes.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
                   光影天气
                 </span>
                 <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} size="small">全部</PillBtn>
@@ -169,7 +170,7 @@ export default function GlobalHeader({
             )}
             {showDiagramFilters && allDiagramTypes.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
                   分析图类型
                 </span>
                 <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} size="small">全部</PillBtn>
@@ -189,26 +190,6 @@ export default function GlobalHeader({
 
 // ── Sub components ──
 
-function NavPill({ active, children }: { active?: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      className={`relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-        active ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
-      }`}
-    >
-      {active && (
-        <motion.div
-          layoutId="active-global-nav"
-          className="absolute inset-0 bg-zinc-100 rounded-full"
-          transition={{ type: "spring", stiffness: 500, damping: 42 }}
-        />
-      )}
-      <span className="relative z-10">{children}</span>
-    </button>
-  );
-}
-
 function PillBtn({
   active,
   onClick,
@@ -224,14 +205,12 @@ function PillBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`relative rounded-full font-medium outline-none transition-colors ${
-        size === "small"
-          ? "px-3 py-1 text-sm"
-          : "px-3.5 py-1.5 text-sm"
-      } ${active ? "text-white" : "text-zinc-400 hover:text-zinc-600"}`}
+      className={`relative rounded-xl px-3 py-1.5 text-sm leading-none outline-none ${
+        active ? "text-white font-medium" : "text-zinc-400 hover:text-gray-900 transition-colors"
+      }`}
     >
       {active && (
-        <div className="absolute inset-0 bg-zinc-900 rounded-full" />
+        <div className="absolute inset-0 bg-[#1c1c1e] rounded-xl" />
       )}
       <span className="relative z-10">{children}</span>
     </button>
