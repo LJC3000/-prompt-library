@@ -51,9 +51,9 @@ export default function GlobalHeader({
           </span>
         </div>
 
-        {/* Primary filters — left-aligned to match secondary */}
-        {hasFilters && (
-          <div className="flex flex-wrap items-center gap-1.5">
+        {/* Primary filters — centered between Logo and search */}
+        {hasFilters ? (
+          <div className="flex-1 flex flex-wrap items-center justify-center gap-1.5">
             <PillBtn
               active={selectedCategory === null}
               onClick={() => onCategoryChange(null)}
@@ -70,10 +70,9 @@ export default function GlobalHeader({
               </PillBtn>
             ))}
           </div>
+        ) : (
+          <div className="flex-1" />
         )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
 
         {/* Desktop search — grey pill */}
         <div className="hidden md:block shrink-0">
@@ -137,7 +136,7 @@ export default function GlobalHeader({
       <AnimatePresence>
         {showSecondary && hasFilters && (
           <motion.div
-            layout
+            key={showBuildingFilters ? "building" : "diagram"}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -147,8 +146,8 @@ export default function GlobalHeader({
             <div className="px-4 pb-3">
             <div className="border-t border-zinc-200/40 pt-2.5 space-y-2">
             {showBuildingFilters && allBuildingTypes.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="shrink-0 text-xs font-medium text-zinc-400">
                   建筑类型
                 </span>
                 <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} size="small">全部</PillBtn>
@@ -158,8 +157,8 @@ export default function GlobalHeader({
               </div>
             )}
             {showBuildingFilters && allWeatherTypes.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="shrink-0 text-xs font-medium text-zinc-400">
                   光影天气
                 </span>
                 <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} size="small">全部</PillBtn>
@@ -169,8 +168,8 @@ export default function GlobalHeader({
               </div>
             )}
             {showDiagramFilters && allDiagramTypes.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="w-44 shrink-0 text-xs font-medium text-zinc-400">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="shrink-0 text-xs font-medium text-zinc-400">
                   分析图类型
                 </span>
                 <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} size="small">全部</PillBtn>
