@@ -153,9 +153,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   建筑类型
                 </span>
-                <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} layoutId="active-building-filter" size="small">全部</PillBtn>
                 {allBuildingTypes.map((t) => (
-                  <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} layoutId="active-building-filter" size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
@@ -164,9 +164,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   光影天气
                 </span>
-                <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} layoutId="active-weather-filter" size="small">全部</PillBtn>
                 {allWeatherTypes.map((t) => (
-                  <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} layoutId="active-weather-filter" size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
@@ -175,9 +175,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   分析图类型
                 </span>
-                <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} layoutId="active-diagram-filter" size="small">全部</PillBtn>
                 {allDiagramTypes.map((t) => (
-                  <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} layoutId="active-diagram-filter" size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
