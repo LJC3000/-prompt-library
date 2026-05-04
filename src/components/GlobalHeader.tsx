@@ -57,7 +57,6 @@ export default function GlobalHeader({
             <PillBtn
               active={selectedCategory === null}
               onClick={() => onCategoryChange(null)}
-              layoutId="active-primary-filter"
             >
               全部
             </PillBtn>
@@ -66,7 +65,6 @@ export default function GlobalHeader({
                 key={cat}
                 active={selectedCategory === cat}
                 onClick={() => onCategoryChange(cat)}
-                layoutId="active-primary-filter"
               >
                 {cat}
               </PillBtn>
@@ -152,9 +150,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   建筑类型
                 </span>
-                <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} layoutId="active-building-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} size="small">全部</PillBtn>
                 {allBuildingTypes.map((t) => (
-                  <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} layoutId="active-building-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
@@ -163,9 +161,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   光影天气
                 </span>
-                <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} layoutId="active-weather-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} size="small">全部</PillBtn>
                 {allWeatherTypes.map((t) => (
-                  <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} layoutId="active-weather-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
@@ -174,9 +172,9 @@ export default function GlobalHeader({
                 <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
                   分析图类型
                 </span>
-                <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} layoutId="active-diagram-filter" size="small">全部</PillBtn>
+                <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} size="small">全部</PillBtn>
                 {allDiagramTypes.map((t) => (
-                  <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} layoutId="active-diagram-filter" size="small">{t}</PillBtn>
+                  <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} size="small">{t}</PillBtn>
                 ))}
               </div>
             )}
@@ -214,18 +212,16 @@ function NavPill({ active, children }: { active?: boolean; children: React.React
 function PillBtn({
   active,
   onClick,
-  layoutId,
   size = "default",
   children,
 }: {
   active: boolean;
   onClick: () => void;
-  layoutId: string;
   size?: "default" | "small";
   children: React.ReactNode;
 }) {
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
       className={`relative rounded-full font-medium outline-none transition-colors ${
@@ -235,13 +231,9 @@ function PillBtn({
       } ${active ? "text-white" : "text-zinc-400 hover:text-zinc-600"}`}
     >
       {active && (
-        <motion.div
-          layoutId={layoutId}
-          className="absolute inset-0 bg-zinc-900 rounded-full"
-          transition={{ type: "spring", stiffness: 500, damping: 42 }}
-        />
+        <div className="absolute inset-0 bg-zinc-900 rounded-full" />
       )}
       <span className="relative z-10">{children}</span>
-    </motion.button>
+    </button>
   );
 }
