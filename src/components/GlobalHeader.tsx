@@ -36,9 +36,8 @@ export default function GlobalHeader({
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      layout
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 ${
+      transition={{ type: "spring", stiffness: 500, damping: 42 }}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 transition-[border-radius] duration-300 ${
         hasContent ? "rounded-3xl" : "rounded-full"
       }`}
       style={{ width: "66.67%", maxWidth: "80rem" }}
@@ -119,7 +118,7 @@ export default function GlobalHeader({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            transition={{ type: "spring", stiffness: 500, damping: 42 }}
             className="overflow-hidden"
           >
             <div className="px-4 pb-3">
@@ -143,7 +142,7 @@ export default function GlobalHeader({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            transition={{ type: "spring", stiffness: 500, damping: 42 }}
             className="overflow-hidden"
           >
             <div className="px-4 pb-3">
@@ -204,7 +203,7 @@ function NavPill({ active, children }: { active?: boolean; children: React.React
         <motion.div
           layoutId="active-global-nav"
           className="absolute inset-0 bg-zinc-100 rounded-full"
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          transition={{ type: "spring", stiffness: 500, damping: 42 }}
         />
       )}
       <span className="relative z-10">{children}</span>
@@ -239,7 +238,7 @@ function PillBtn({
         <motion.div
           layoutId={layoutId}
           className="absolute inset-0 bg-zinc-900 rounded-full"
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          transition={{ type: "spring", stiffness: 500, damping: 42 }}
         />
       )}
       <span className="relative z-10">{children}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue } from "react";
 import PromptCard from "@/components/PromptCard";
 import PromptModal from "@/components/PromptModal";
 import Navigation from "@/components/Navigation";
@@ -177,6 +177,8 @@ export default function Home() {
     });
   }, [cards, search, selectedCategory, selectedBuilding, selectedWeather, selectedDiagram]);
 
+  const deferredFiltered = useDeferredValue(filtered);
+
   const handleSelect = useCallback((prompt: PromptItem, index: number) => {
     scrollPos.current = window.scrollY;
 
@@ -257,13 +259,13 @@ export default function Home() {
             </p>
             <p className="mt-2 text-xs text-zinc-300">{error}</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : deferredFiltered.length === 0 ? (
           <div className="py-32 text-center">
             <p className="text-sm text-zinc-400">No prompts found.</p>
           </div>
         ) : (
           <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-6">
-            {filtered.map((card, i) => (
+            {deferredFiltered.map((card, i) => (
               <PromptCard
                 key={card.cardKey}
                 card={card}
@@ -286,7 +288,7 @@ export default function Home() {
 
       <PromptModal
         prompt={selectedPrompt}
-        hasNext={selectedIndex < filtered.length - 1}
+        hasNext={selectedIndex < deferredFiltered.length - 1}
         hasPrev={selectedIndex > 0}
         onNext={handleNext}
         onPrev={handlePrev}
