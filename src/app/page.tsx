@@ -224,7 +224,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Navigation: floating GlobalHeader + sticky FilterPanel */}
+      {/* Navigation: floating all-in-one capsule */}
       <Navigation
         search={search}
         onSearchChange={setSearch}
