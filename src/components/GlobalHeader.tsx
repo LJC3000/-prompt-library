@@ -39,21 +39,39 @@ export default function GlobalHeader({
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 ${
         hasContent ? "rounded-3xl" : "rounded-full"
       }`}
-      style={{ width: "calc(100% - 2rem)", maxWidth: "48rem" }}
+      style={{ width: "calc(100% - 2rem)", maxWidth: "64rem" }}
     >
-      {/* Row 1: Logo + Nav + Search */}
+      {/* Row 1: Logo + Primary filters + Search */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
         <div className="shrink-0 pl-2">
-          <span className="text-base font-semibold tracking-tight text-zinc-900">
+          <span className="text-lg font-semibold tracking-tight text-zinc-900">
             Prompt Library
           </span>
         </div>
 
-        {/* Global nav items */}
-        <div className="flex items-center gap-1 ml-4">
-          <NavPill active>图库</NavPill>
-        </div>
+        {/* Primary filters — inline with logo */}
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 ml-2">
+            <PillBtn
+              active={selectedCategory === null}
+              onClick={() => onCategoryChange(null)}
+              layoutId="active-primary-filter"
+            >
+              全部
+            </PillBtn>
+            {categories.map((cat) => (
+              <PillBtn
+                key={cat}
+                active={selectedCategory === cat}
+                onClick={() => onCategoryChange(cat)}
+                layoutId="active-primary-filter"
+              >
+                {cat}
+              </PillBtn>
+            ))}
+          </div>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -116,130 +134,44 @@ export default function GlobalHeader({
         )}
       </AnimatePresence>
 
-      {/* Separator between nav row and filter area */}
-      {hasFilters && <div className="border-t border-zinc-200/40 mx-4" />}
-
-      {/* Filter area */}
-      {hasFilters && (
-        <div className="px-4 pb-3 pt-2.5">
-          {/* Primary filter row */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
-              图片类型
-            </span>
-            <PillBtn
-              active={selectedCategory === null}
-              onClick={() => onCategoryChange(null)}
-              layoutId="active-primary-filter"
-            >
-              全部
-            </PillBtn>
-            {categories.map((cat) => (
-              <PillBtn
-                key={cat}
-                active={selectedCategory === cat}
-                onClick={() => onCategoryChange(cat)}
-                layoutId="active-primary-filter"
-              >
-                {cat}
-              </PillBtn>
-            ))}
-          </div>
-
-          {/* Secondary filter sub-panel */}
-          <AnimatePresence mode="wait">
-            {showSecondary && (
-              <motion.div
-                key={showBuildingFilters ? "building" : "diagram"}
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="overflow-hidden"
-              >
-                <div className="pt-3 space-y-2 pl-6">
-                  {showBuildingFilters && allBuildingTypes.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
-                        建筑类型
-                      </span>
-                      <PillBtn
-                        active={selectedBuilding === null}
-                        onClick={() => onBuildingChange(null)}
-                        layoutId="active-secondary-filter"
-                        size="small"
-                      >
-                        全部
-                      </PillBtn>
-                      {allBuildingTypes.map((t) => (
-                        <PillBtn
-                          key={t}
-                          active={selectedBuilding === t}
-                          onClick={() => onBuildingChange(t)}
-                          layoutId="active-secondary-filter"
-                          size="small"
-                        >
-                          {t}
-                        </PillBtn>
-                      ))}
-                    </div>
-                  )}
-                  {showBuildingFilters && allWeatherTypes.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
-                        光影天气
-                      </span>
-                      <PillBtn
-                        active={selectedWeather === null}
-                        onClick={() => onWeatherChange(null)}
-                        layoutId="active-secondary-filter"
-                        size="small"
-                      >
-                        全部
-                      </PillBtn>
-                      {allWeatherTypes.map((t) => (
-                        <PillBtn
-                          key={t}
-                          active={selectedWeather === t}
-                          onClick={() => onWeatherChange(t)}
-                          layoutId="active-secondary-filter"
-                          size="small"
-                        >
-                          {t}
-                        </PillBtn>
-                      ))}
-                    </div>
-                  )}
-                  {showDiagramFilters && allDiagramTypes.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
-                        分析图类型
-                      </span>
-                      <PillBtn
-                        active={selectedDiagram === null}
-                        onClick={() => onDiagramChange(null)}
-                        layoutId="active-secondary-filter"
-                        size="small"
-                      >
-                        全部
-                      </PillBtn>
-                      {allDiagramTypes.map((t) => (
-                        <PillBtn
-                          key={t}
-                          active={selectedDiagram === t}
-                          onClick={() => onDiagramChange(t)}
-                          layoutId="active-secondary-filter"
-                          size="small"
-                        >
-                          {t}
-                        </PillBtn>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+      {/* Secondary filter sub-panel — expands below main row */}
+      {showSecondary && hasFilters && (
+        <div className="px-4 pb-3">
+          <div className="border-t border-zinc-200/40 pt-2.5 pl-6 space-y-2">
+            {showBuildingFilters && allBuildingTypes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                  建筑类型
+                </span>
+                <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                {allBuildingTypes.map((t) => (
+                  <PillBtn key={t} active={selectedBuilding === t} onClick={() => onBuildingChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                ))}
+              </div>
             )}
-          </AnimatePresence>
+            {showBuildingFilters && allWeatherTypes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                  光影天气
+                </span>
+                <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                {allWeatherTypes.map((t) => (
+                  <PillBtn key={t} active={selectedWeather === t} onClick={() => onWeatherChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                ))}
+              </div>
+            )}
+            {showDiagramFilters && allDiagramTypes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-zinc-400 mr-1 shrink-0">
+                  分析图类型
+                </span>
+                <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} layoutId="active-secondary-filter" size="small">全部</PillBtn>
+                {allDiagramTypes.map((t) => (
+                  <PillBtn key={t} active={selectedDiagram === t} onClick={() => onDiagramChange(t)} layoutId="active-secondary-filter" size="small">{t}</PillBtn>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </motion.header>
