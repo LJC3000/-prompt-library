@@ -147,8 +147,8 @@ export default function GlobalHeader({
             <div className="border-t border-zinc-200/40 pt-2.5 space-y-2">
             {showBuildingFilters && allBuildingTypes.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-44 shrink-0 flex justify-end pr-4">
-                  <span className="text-xs font-medium text-zinc-400">建筑类型</span>
+                <div className="w-44 shrink-0 text-right">
+                  <span className="inline-block w-24 text-xs font-medium text-zinc-400 pr-4">建筑类型</span>
                 </div>
                 <div className="flex-1 flex flex-wrap items-center justify-center gap-1.5">
                   <PillBtn active={selectedBuilding === null} onClick={() => onBuildingChange(null)} size="small">全部</PillBtn>
@@ -161,8 +161,8 @@ export default function GlobalHeader({
             )}
             {showBuildingFilters && allWeatherTypes.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-44 shrink-0 flex justify-end pr-4">
-                  <span className="text-xs font-medium text-zinc-400">光影天气</span>
+                <div className="w-44 shrink-0 text-right">
+                  <span className="inline-block w-24 text-xs font-medium text-zinc-400 pr-4">光影天气</span>
                 </div>
                 <div className="flex-1 flex flex-wrap items-center justify-center gap-1.5">
                   <PillBtn active={selectedWeather === null} onClick={() => onWeatherChange(null)} size="small">全部</PillBtn>
@@ -175,8 +175,8 @@ export default function GlobalHeader({
             )}
             {showDiagramFilters && allDiagramTypes.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-44 shrink-0 flex justify-end pr-4">
-                  <span className="text-xs font-medium text-zinc-400">分析图类型</span>
+                <div className="w-44 shrink-0 text-right">
+                  <span className="inline-block w-24 text-xs font-medium text-zinc-400 pr-4">分析图类型</span>
                 </div>
                 <div className="flex-1 flex flex-wrap items-center justify-center gap-1.5">
                   <PillBtn active={selectedDiagram === null} onClick={() => onDiagramChange(null)} size="small">全部</PillBtn>
