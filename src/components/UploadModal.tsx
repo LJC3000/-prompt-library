@@ -593,30 +593,21 @@ function ImageDropZone({
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
-  const dragCounterRef = useRef(0);
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current++;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setDragOver(true);
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current--;
-    if (dragCounterRef.current === 0) {
-      setDragOver(false);
-    }
-  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only reset if truly leaving the drop zone (not moving to a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOver(false);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -624,7 +615,6 @@ function ImageDropZone({
       e.preventDefault();
       e.stopPropagation();
       setDragOver(false);
-      dragCounterRef.current = 0;
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         onDropFiles(e.dataTransfer.files);
       }
@@ -647,46 +637,45 @@ function ImageDropZone({
         onChange={onFileChange}
         disabled={disabled}
       />
-      {/* Drop zone wrapper — drag events on div, not button, for reliable cross-browser behavior */}
+      {/* Drop zone — single div handles both drag & click, no inner button to intercept */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
-        onDragEnter={handleDragEnter}
+        onClick={disabled ? undefined : onSelect}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!disabled) onSelect(); } }}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        className={`w-full rounded-lg border-2 border-dashed transition-colors ${
+        className={`w-full rounded-lg border-2 border-dashed transition-colors flex items-center justify-center cursor-pointer ${
+          disabled ? "opacity-40 pointer-events-none" : ""
+        } ${
           dragOver
             ? "border-zinc-800 bg-zinc-100"
             : "border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50"
         }`}
       >
-        <button
-          type="button"
-          onClick={onSelect}
-          disabled={disabled}
-          className="w-full min-h-[100px] flex items-center justify-center disabled:opacity-40 cursor-pointer bg-transparent border-0 outline-none"
-        >
-          <div className="text-center">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="mx-auto text-zinc-300 mb-1"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span className="text-xs text-zinc-400">
-              {files.length > 0
-                ? `已选 ${files.length} 张`
-                : dragOver
-                ? "释放以上传"
-                : "点击选择或拖拽图片"}
-            </span>
-          </div>
-        </button>
+        <div className="text-center py-4">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="mx-auto text-zinc-300 mb-1"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="text-xs text-zinc-400">
+            {files.length > 0
+              ? `已选 ${files.length} 张`
+              : dragOver
+              ? "释放以上传"
+              : "点击选择或拖拽图片"}
+          </span>
+        </div>
       </div>
 
       {/* Thumbnail previews */}
