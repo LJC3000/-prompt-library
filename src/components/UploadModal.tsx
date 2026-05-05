@@ -646,42 +646,47 @@ function ImageDropZone({
         onChange={onFileChange}
         disabled={disabled}
       />
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={disabled}
+      {/* Drop zone wrapper — drag events on div, not button, for reliable cross-browser behavior */}
+      <div
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        className={`w-full min-h-[100px] rounded-lg border-2 border-dashed transition-colors flex items-center justify-center disabled:opacity-40 cursor-pointer ${
+        className={`w-full rounded-lg border-2 border-dashed transition-colors ${
           dragOver
             ? "border-zinc-800 bg-zinc-100"
             : "border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50"
         }`}
       >
-        <div className="text-center">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="mx-auto text-zinc-300 mb-1"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span className="text-xs text-zinc-400">
-            {files.length > 0
-              ? `已选 ${files.length} 张`
-              : dragOver
-              ? "释放以上传"
-              : "点击选择或拖拽图片"}
-          </span>
-        </div>
-      </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          disabled={disabled}
+          className="w-full min-h-[100px] flex items-center justify-center disabled:opacity-40 cursor-pointer bg-transparent border-0 outline-none"
+        >
+          <div className="text-center">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="mx-auto text-zinc-300 mb-1"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span className="text-xs text-zinc-400">
+              {files.length > 0
+                ? `已选 ${files.length} 张`
+                : dragOver
+                ? "释放以上传"
+                : "点击选择或拖拽图片"}
+            </span>
+          </div>
+        </button>
+      </div>
 
       {/* Thumbnail previews */}
       {files.length > 0 && (
