@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import type { PromptCardItem } from "@/types/prompt";
 import { cardThumbSrc, proxyUrl, refreshTmpUrl } from "@/lib/imageUrl";
-import { getCachedRatio, setCachedRatio, isLoaded, markLoaded } from "@/lib/imageCache";
 
 const MORANDI_COLORS = [
   "#d4c8b8",
@@ -34,11 +33,11 @@ interface PromptCardProps {
 }
 
 export default function PromptCard({ card, index, onSelect, onImageLoaded, preloadedUrls }: PromptCardProps) {
-  const [ratio, setRatio] = useState<number | null>(card.resultImage?.aspectRatio ?? getCachedRatio(card.cardKey) ?? null);
+  const [ratio, setRatio] = useState<number | null>(card.resultImage?.aspectRatio ?? null);
   // sourceMode: "primary"=tmp_url, "refreshing"=waiting, "proxy"=/api/image, "failed"=placeholder
   const [sourceMode, setSourceMode] = useState<"primary" | "refreshing" | "proxy" | "failed">("primary");
   const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
-  const [shouldLoad, setShouldLoad] = useState(isLoaded(card.cardKey));
+  const [shouldLoad, setShouldLoad] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sourceModeRef = useRef(sourceMode);
@@ -108,10 +107,7 @@ export default function PromptCard({ card, index, onSelect, onImageLoaded, prelo
         loadTimeoutRef.current = null;
       }
       const img = e.currentTarget;
-      const r = img.naturalWidth / img.naturalHeight;
-      setRatio(r);
-      setCachedRatio(card.cardKey, r);
-      markLoaded(card.cardKey);
+      setRatio(img.naturalWidth / img.naturalHeight);
       onImageLoaded?.(card.cardKey);
     },
     [onImageLoaded, card.cardKey]
