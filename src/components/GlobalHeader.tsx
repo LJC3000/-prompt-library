@@ -40,13 +40,13 @@ export default function GlobalHeader({
       className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-sm border border-white/50 transition-[border-radius] duration-300 ${
         hasContent ? "rounded-3xl" : "rounded-full"
       }`}
-      style={{ width: "80%", maxWidth: "96rem" }}
+      style={{ width: "88%", maxWidth: "96rem" }}
     >
       {/* Row 1: Logo (left) | Primary filters (left-aligned) | Spacer | Search (right) */}
       <div className="flex items-center gap-2 px-4 py-2.5">
         {/* Logo */}
-        <div className="w-44 shrink-0 pl-2">
-          <span className="text-2xl font-semibold tracking-tight text-zinc-900">
+        <div className="shrink-0 pl-2">
+          <span className="text-2xl font-semibold tracking-tight text-zinc-900 whitespace-nowrap">
             Prompt Library
           </span>
         </div>
