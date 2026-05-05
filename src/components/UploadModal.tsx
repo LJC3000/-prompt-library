@@ -266,18 +266,18 @@ export default function UploadModal({
   return (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-[100] flex justify-center overflow-y-auto items-start">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={uploading ? undefined : onClose}
           />
 
-          {/* Modal */}
+          {/* Modal card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -288,205 +288,203 @@ export default function UploadModal({
               damping: 35,
               mass: 0.8,
             }}
-            className="fixed inset-4 sm:inset-8 md:inset-auto md:top-[3vh] md:left-1/2 md:-translate-x-1/2 md:w-[820px] md:max-h-[94vh] z-[101] overflow-y-auto rounded-2xl bg-white shadow-xl border border-white/50"
+            className="relative z-10 mx-4"
+            style={{
+              marginTop: "8vh",
+              marginBottom: "5vh",
+              maxWidth: "880px",
+              width: "100%",
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={uploading ? undefined : onClose}
-              disabled={uploading}
-              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40 z-10"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+            <div className="flex flex-col h-[80vh] rounded-2xl bg-white shadow-xl border border-white/50 overflow-hidden">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={uploading ? undefined : onClose}
+                disabled={uploading}
+                className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
 
-            {/* Header */}
-            <div className="px-8 pt-10 pb-5 border-b border-zinc-100">
-              <h2 className="text-xl font-semibold text-zinc-900 tracking-tight">
-                添加新 Prompt
-              </h2>
-            </div>
-
-            {/* Form body */}
-            <div className="px-8 pt-4 pb-6 space-y-7">
-
-              {/* ═══════════════════════════════════════════
-                  分区一：顶部视觉资产（第一优先级）
-                  ═══════════════════════════════════════════ */}
-              <div className="grid grid-cols-2 gap-5">
-                {/* 生成结果 */}
-                <div className="bg-zinc-50/80 rounded-2xl p-5">
-                  <ImageDropZone
-                    label="生成结果"
-                    required
-                    files={resultFiles}
-                    onSelect={() => resultInputRef.current?.click()}
-                    onRemove={(i) => removeFile(i, "results")}
-                    onDropFiles={(files) =>
-                      handleFilesSelected(files, "results", resultFiles)
-                    }
-                    disabled={uploading}
-                    inputRef={resultInputRef}
-                    inputId="result-upload"
-                    onFileChange={(e) =>
-                      handleFilesSelected(e.target.files, "results", resultFiles)
-                    }
-                  />
-                </div>
-
-                {/* 参考图片 */}
-                <div className="bg-zinc-50/80 rounded-2xl p-5">
-                  <ImageDropZone
-                    label="参考图片"
-                    files={refFiles}
-                    onSelect={() => refInputRef.current?.click()}
-                    onRemove={(i) => removeFile(i, "refs")}
-                    onDropFiles={(files) =>
-                      handleFilesSelected(files, "refs", refFiles)
-                    }
-                    disabled={uploading}
-                    inputRef={refInputRef}
-                    inputId="ref-upload"
-                    onFileChange={(e) =>
-                      handleFilesSelected(e.target.files, "refs", refFiles)
-                    }
-                  />
-                </div>
+              {/* Header (shrink-0 = always visible) */}
+              <div className="shrink-0 px-8 pt-10 pb-5 border-b border-zinc-100">
+                <h2 className="text-xl font-semibold text-zinc-900 tracking-tight">
+                  添加新 Prompt
+                </h2>
               </div>
 
-              {/* ═══════════════════════════════════════════
-                  分区二：中部核心提示词（第二优先级）
-                  ═══════════════════════════════════════════ */}
-              <div>
-                <label
-                  htmlFor="promptContent"
-                  className="block text-sm font-medium text-zinc-700 mb-2"
-                >
-                  提示词 <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
-                </label>
-                <textarea
-                  id="promptContent"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="输入完整的提示词文本，支持多行编辑..."
-                  rows={8}
-                  className="w-full rounded-xl bg-zinc-50/80 border border-zinc-200 px-4 py-3.5 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white resize-none leading-relaxed"
-                />
-              </div>
+              {/* Form body (flex-1 overflow-y-auto = only this scrolls) */}
+              <div className="flex-1 overflow-y-auto px-8 pt-4 pb-6 space-y-7">
 
-              {/* ═══════════════════════════════════════════
-                  分区三：中下基础信息（次优先级）
-                  ═══════════════════════════════════════════ */}
-              <div className="grid grid-cols-3 gap-5">
-                <TextField
-                  label="项目名称"
-                  required
-                  value={title}
-                  onChange={setTitle}
-                  placeholder="深圳湾文化广场"
-                />
-                <TextField
-                  label="部门"
-                  value={department}
-                  onChange={setDepartment}
-                  placeholder="方案二组"
-                />
-                {/* AI工具 / 模型 紧凑合并 */}
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">
-                    AI工具 / 模型
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={aiTool}
-                      onChange={(e) => setAiTool(e.target.value)}
-                      placeholder="Midjourney"
-                      className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                {/* ═══ 分区一：顶部视觉资产（第一优先级） ═══ */}
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="bg-zinc-50/80 rounded-2xl p-5">
+                    <ImageDropZone
+                      label="生成结果"
+                      required
+                      files={resultFiles}
+                      onSelect={() => resultInputRef.current?.click()}
+                      onRemove={(i) => removeFile(i, "results")}
+                      onDropFiles={(files) =>
+                        handleFilesSelected(files, "results", resultFiles)
+                      }
+                      disabled={uploading}
+                      inputRef={resultInputRef}
+                      inputId="result-upload"
+                      onFileChange={(e) =>
+                        handleFilesSelected(e.target.files, "results", resultFiles)
+                      }
                     />
-                    <span className="text-zinc-300 text-xs shrink-0">/</span>
-                    <input
-                      type="text"
-                      value={aiModel}
-                      onChange={(e) => setAiModel(e.target.value)}
-                      placeholder="V6"
-                      className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                  </div>
+
+                  <div className="bg-zinc-50/80 rounded-2xl p-5">
+                    <ImageDropZone
+                      label="参考图片"
+                      files={refFiles}
+                      onSelect={() => refInputRef.current?.click()}
+                      onRemove={(i) => removeFile(i, "refs")}
+                      onDropFiles={(files) =>
+                        handleFilesSelected(files, "refs", refFiles)
+                      }
+                      disabled={uploading}
+                      inputRef={refInputRef}
+                      inputId="ref-upload"
+                      onFileChange={(e) =>
+                        handleFilesSelected(e.target.files, "refs", refFiles)
+                      }
                     />
                   </div>
                 </div>
+
+                {/* ═══ 分区二：中部核心提示词（第二优先级） ═══ */}
+                <div>
+                  <label
+                    htmlFor="promptContent"
+                    className="block text-sm font-medium text-zinc-700 mb-2"
+                  >
+                    提示词 <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
+                  </label>
+                  <textarea
+                    id="promptContent"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="输入完整的提示词文本，支持多行编辑..."
+                    rows={8}
+                    className="w-full rounded-xl bg-zinc-50/80 border border-zinc-200 px-4 py-3.5 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white resize-none leading-relaxed"
+                  />
+                </div>
+
+                {/* ═══ 分区三：中下基础信息（次优先级） ═══ */}
+                <div className="grid grid-cols-3 gap-5">
+                  <TextField
+                    label="项目名称"
+                    required
+                    value={title}
+                    onChange={setTitle}
+                    placeholder="深圳湾文化广场"
+                  />
+                  <TextField
+                    label="部门"
+                    value={department}
+                    onChange={setDepartment}
+                    placeholder="方案二组"
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-2">
+                      AI工具 / 模型
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={aiTool}
+                        onChange={(e) => setAiTool(e.target.value)}
+                        placeholder="Midjourney"
+                        className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                      />
+                      <span className="text-zinc-300 text-xs shrink-0">/</span>
+                      <input
+                        type="text"
+                        value={aiModel}
+                        onChange={(e) => setAiModel(e.target.value)}
+                        placeholder="V6"
+                        className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ═══ 分区四：底部专业标签（补充优先级） ═══ */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                  <TagGroup
+                    label="图片类型"
+                    required
+                    options={IMAGE_TYPE_OPTIONS}
+                    selected={imageTypes}
+                    onToggle={(tag) => toggleTag(imageTypes, setImageTypes, tag)}
+                  />
+                  <TagGroup
+                    label="建筑类型"
+                    options={BUILDING_TYPE_OPTIONS}
+                    selected={buildingTypes}
+                    onToggle={(tag) => toggleTag(buildingTypes, setBuildingTypes, tag)}
+                  />
+                  <TagGroup
+                    label="光影天气"
+                    options={WEATHER_TYPE_OPTIONS}
+                    selected={weatherTypes}
+                    onToggle={(tag) => toggleTag(weatherTypes, setWeatherTypes, tag)}
+                  />
+                  <TagGroup
+                    label="分析图类型"
+                    options={DIAGRAM_TYPE_OPTIONS}
+                    selected={diagramTypes}
+                    onToggle={(tag) => toggleTag(diagramTypes, setDiagramTypes, tag)}
+                  />
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                {/* Upload status */}
+                {statusText && (
+                  <div className="flex items-center gap-2.5 text-sm text-zinc-500">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-800" />
+                    {statusText}
+                  </div>
+                )}
               </div>
 
-              {/* ═══════════════════════════════════════════
-                  分区四：底部专业标签（补充优先级）
-                  ═══════════════════════════════════════════ */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                <TagGroup
-                  label="图片类型"
-                  required
-                  options={IMAGE_TYPE_OPTIONS}
-                  selected={imageTypes}
-                  onToggle={(tag) => toggleTag(imageTypes, setImageTypes, tag)}
-                />
-                <TagGroup
-                  label="建筑类型"
-                  options={BUILDING_TYPE_OPTIONS}
-                  selected={buildingTypes}
-                  onToggle={(tag) => toggleTag(buildingTypes, setBuildingTypes, tag)}
-                />
-                <TagGroup
-                  label="光影天气"
-                  options={WEATHER_TYPE_OPTIONS}
-                  selected={weatherTypes}
-                  onToggle={(tag) => toggleTag(weatherTypes, setWeatherTypes, tag)}
-                />
-                <TagGroup
-                  label="分析图类型"
-                  options={DIAGRAM_TYPE_OPTIONS}
-                  selected={diagramTypes}
-                  onToggle={(tag) => toggleTag(diagramTypes, setDiagramTypes, tag)}
-                />
+              {/* Footer (shrink-0 = always visible, no scroll needed to reach) */}
+              <div className="shrink-0 px-8 py-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={uploading}
+                  className="px-5 py-2.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors disabled:opacity-40 rounded-xl"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={uploading}
+                  className="px-6 py-2.5 text-sm font-medium text-white bg-[#1c1c1e] hover:bg-black rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {uploading ? "提交中..." : "提交"}
+                </button>
               </div>
-
-              {/* Error */}
-              {error && (
-                <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-
-              {/* Upload status */}
-              {statusText && (
-                <div className="flex items-center gap-2.5 text-sm text-zinc-500">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-800" />
-                  {statusText}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-8 py-4 border-t border-zinc-100 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={uploading}
-                className="px-5 py-2.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors disabled:opacity-40 rounded-xl"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={uploading}
-                className="px-6 py-2.5 text-sm font-medium text-white bg-[#1c1c1e] hover:bg-black rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-              >
-                {uploading ? "提交中..." : "提交"}
-              </button>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
