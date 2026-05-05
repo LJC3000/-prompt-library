@@ -60,11 +60,11 @@ export default function UploadModal({
   const [weatherTypes, setWeatherTypes] = useState<string[]>([]);
   const [diagramTypes, setDiagramTypes] = useState<string[]>([]);
 
-  // ── Image file state (compressed Files, for upload) ──
+  // ── Image file state ──
   const [resultFiles, setResultFiles] = useState<File[]>([]);
   const [refFiles, setRefFiles] = useState<File[]>([]);
 
-  // ── Uploaded image metadata (after server confirms) ──
+  // ── Uploaded image metadata ──
   const [uploadedResults, setUploadedResults] = useState<UploadedImage[]>([]);
   const [uploadedRefs, setUploadedRefs] = useState<UploadedImage[]>([]);
 
@@ -127,7 +127,6 @@ export default function UploadModal({
           });
           incoming.push(compressed);
         } catch {
-          // Fallback: use original if compression fails
           incoming.push(file);
         }
       }
@@ -156,7 +155,6 @@ export default function UploadModal({
   const handleSubmit = useCallback(async () => {
     setError(null);
 
-    // Validation
     if (!title.trim()) {
       setError("请输入项目名称");
       return;
@@ -177,7 +175,6 @@ export default function UploadModal({
     setUploading(true);
 
     try {
-      // ── Step 1: Upload result images sequentially ──
       const newResults: UploadedImage[] = [];
       for (let i = 0; i < resultFiles.length; i++) {
         setStatusText(`正在上传图片 (${i + 1}/${resultFiles.length})...`);
@@ -198,7 +195,6 @@ export default function UploadModal({
       }
       setUploadedResults(newResults);
 
-      // ── Step 2: Upload reference images sequentially ──
       const newRefs: UploadedImage[] = [];
       for (let i = 0; i < refFiles.length; i++) {
         setStatusText(`正在上传参考图片 (${i + 1}/${refFiles.length})...`);
@@ -219,7 +215,6 @@ export default function UploadModal({
       }
       setUploadedRefs(newRefs);
 
-      // ── Step 3: Create Feishu record ──
       setStatusText("正在创建记录...");
       const createRes = await fetch("/api/create-prompt", {
         method: "POST",
@@ -251,7 +246,6 @@ export default function UploadModal({
       setError(
         err instanceof Error ? err.message : "上传失败，请重试"
       );
-      // Do NOT clear form data — retain for retry
     }
   }, [
     title,
@@ -294,14 +288,14 @@ export default function UploadModal({
               damping: 35,
               mass: 0.8,
             }}
-            className="fixed inset-4 sm:inset-8 md:inset-auto md:top-[5vh] md:left-1/2 md:-translate-x-1/2 md:w-[720px] md:max-h-[90vh] z-[101] overflow-y-auto rounded-2xl bg-white shadow-xl border border-white/50"
+            className="fixed inset-4 sm:inset-8 md:inset-auto md:top-[3vh] md:left-1/2 md:-translate-x-1/2 md:w-[820px] md:max-h-[94vh] z-[101] overflow-y-auto rounded-2xl bg-white shadow-xl border border-white/50"
           >
             {/* Close button */}
             <button
               type="button"
               onClick={uploading ? undefined : onClose}
               disabled={uploading}
-              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40"
+              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40 z-10"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -310,144 +304,162 @@ export default function UploadModal({
             </button>
 
             {/* Header */}
-            <div className="px-6 pt-8 pb-4 border-b border-zinc-100">
-              <h2 className="text-lg font-semibold text-zinc-900">
+            <div className="px-8 pt-10 pb-5 border-b border-zinc-100">
+              <h2 className="text-xl font-semibold text-zinc-900 tracking-tight">
                 添加新 Prompt
               </h2>
             </div>
 
-            {/* Form */}
-            <div className="px-6 pt-2 pb-4 space-y-5">
-              {/* Text fields — 2-col grid on md+ */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Left column */}
-                <div className="space-y-4">
-                  <TextField
-                    label="项目名称 *"
-                    value={title}
-                    onChange={setTitle}
-                    placeholder="例如：深圳湾文化广场"
-                  />
-                  <TextField
-                    label="提示词 *"
-                    value={content}
-                    onChange={setContent}
-                    placeholder="输入完整的提示词文本..."
-                    multiline
-                    rows={4}
-                  />
-                  <TextField
-                    label="部门"
-                    value={department}
-                    onChange={setDepartment}
-                    placeholder="例如：方案二组"
+            {/* Form body */}
+            <div className="px-8 pt-4 pb-6 space-y-7">
+
+              {/* ═══════════════════════════════════════════
+                  分区一：顶部视觉资产（第一优先级）
+                  ═══════════════════════════════════════════ */}
+              <div className="grid grid-cols-2 gap-5">
+                {/* 生成结果 */}
+                <div className="bg-zinc-50/80 rounded-2xl p-5">
+                  <ImageDropZone
+                    label="生成结果"
+                    required
+                    files={resultFiles}
+                    onSelect={() => resultInputRef.current?.click()}
+                    onRemove={(i) => removeFile(i, "results")}
+                    onDropFiles={(files) =>
+                      handleFilesSelected(files, "results", resultFiles)
+                    }
+                    disabled={uploading}
+                    inputRef={resultInputRef}
+                    inputId="result-upload"
+                    onFileChange={(e) =>
+                      handleFilesSelected(e.target.files, "results", resultFiles)
+                    }
                   />
                 </div>
 
-                {/* Right column */}
-                <div className="space-y-4">
-                  <TextField
-                    label="AI工具"
-                    value={aiTool}
-                    onChange={setAiTool}
-                    placeholder="Midjourney"
-                  />
-                  <TextField
-                    label="AI模型"
-                    value={aiModel}
-                    onChange={setAiModel}
-                    placeholder="V6"
-                  />
-
-                  {/* Multi-select: 图片类型 */}
-                  <TagGroup
-                    label="图片类型 *"
-                    options={IMAGE_TYPE_OPTIONS}
-                    selected={imageTypes}
-                    onToggle={(tag) =>
-                      toggleTag(imageTypes, setImageTypes, tag)
+                {/* 参考图片 */}
+                <div className="bg-zinc-50/80 rounded-2xl p-5">
+                  <ImageDropZone
+                    label="参考图片"
+                    files={refFiles}
+                    onSelect={() => refInputRef.current?.click()}
+                    onRemove={(i) => removeFile(i, "refs")}
+                    onDropFiles={(files) =>
+                      handleFilesSelected(files, "refs", refFiles)
                     }
-                  />
-
-                  {/* Multi-select: 建筑类型 */}
-                  <TagGroup
-                    label="建筑类型"
-                    options={BUILDING_TYPE_OPTIONS}
-                    selected={buildingTypes}
-                    onToggle={(tag) =>
-                      toggleTag(buildingTypes, setBuildingTypes, tag)
-                    }
-                  />
-
-                  {/* Multi-select: 光影天气 */}
-                  <TagGroup
-                    label="光影天气"
-                    options={WEATHER_TYPE_OPTIONS}
-                    selected={weatherTypes}
-                    onToggle={(tag) =>
-                      toggleTag(weatherTypes, setWeatherTypes, tag)
-                    }
-                  />
-
-                  {/* Multi-select: 分析图类型 */}
-                  <TagGroup
-                    label="分析图类型"
-                    options={DIAGRAM_TYPE_OPTIONS}
-                    selected={diagramTypes}
-                    onToggle={(tag) =>
-                      toggleTag(diagramTypes, setDiagramTypes, tag)
+                    disabled={uploading}
+                    inputRef={refInputRef}
+                    inputId="ref-upload"
+                    onFileChange={(e) =>
+                      handleFilesSelected(e.target.files, "refs", refFiles)
                     }
                   />
                 </div>
               </div>
 
-              {/* ── Image upload areas ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 生成结果 */}
-                <ImageDropZone
-                  label="生成结果 *"
-                  files={resultFiles}
-                  onSelect={() => resultInputRef.current?.click()}
-                  onRemove={(i) => removeFile(i, "results")}
-                  onDropFiles={(files) =>
-                    handleFilesSelected(files, "results", resultFiles)
-                  }
-                  disabled={uploading}
-                  inputRef={resultInputRef}
-                  inputId="result-upload"
-                  onFileChange={(e) =>
-                    handleFilesSelected(e.target.files, "results", resultFiles)
-                  }
+              {/* ═══════════════════════════════════════════
+                  分区二：中部核心提示词（第二优先级）
+                  ═══════════════════════════════════════════ */}
+              <div>
+                <label
+                  htmlFor="promptContent"
+                  className="block text-sm font-medium text-zinc-700 mb-2"
+                >
+                  提示词 <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
+                </label>
+                <textarea
+                  id="promptContent"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="输入完整的提示词文本，支持多行编辑..."
+                  rows={8}
+                  className="w-full rounded-xl bg-zinc-50/80 border border-zinc-200 px-4 py-3.5 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white resize-none leading-relaxed"
                 />
+              </div>
 
-                {/* 参考图片 */}
-                <ImageDropZone
-                  label="参考图片"
-                  files={refFiles}
-                  onSelect={() => refInputRef.current?.click()}
-                  onRemove={(i) => removeFile(i, "refs")}
-                  onDropFiles={(files) =>
-                    handleFilesSelected(files, "refs", refFiles)
-                  }
-                  disabled={uploading}
-                  inputRef={refInputRef}
-                  inputId="ref-upload"
-                  onFileChange={(e) =>
-                    handleFilesSelected(e.target.files, "refs", refFiles)
-                  }
+              {/* ═══════════════════════════════════════════
+                  分区三：中下基础信息（次优先级）
+                  ═══════════════════════════════════════════ */}
+              <div className="grid grid-cols-3 gap-5">
+                <TextField
+                  label="项目名称"
+                  required
+                  value={title}
+                  onChange={setTitle}
+                  placeholder="深圳湾文化广场"
+                />
+                <TextField
+                  label="部门"
+                  value={department}
+                  onChange={setDepartment}
+                  placeholder="方案二组"
+                />
+                {/* AI工具 / 模型 紧凑合并 */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">
+                    AI工具 / 模型
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={aiTool}
+                      onChange={(e) => setAiTool(e.target.value)}
+                      placeholder="Midjourney"
+                      className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                    />
+                    <span className="text-zinc-300 text-xs shrink-0">/</span>
+                    <input
+                      type="text"
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      placeholder="V6"
+                      className="flex-1 min-w-0 rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════
+                  分区四：底部专业标签（补充优先级）
+                  ═══════════════════════════════════════════ */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                <TagGroup
+                  label="图片类型"
+                  required
+                  options={IMAGE_TYPE_OPTIONS}
+                  selected={imageTypes}
+                  onToggle={(tag) => toggleTag(imageTypes, setImageTypes, tag)}
+                />
+                <TagGroup
+                  label="建筑类型"
+                  options={BUILDING_TYPE_OPTIONS}
+                  selected={buildingTypes}
+                  onToggle={(tag) => toggleTag(buildingTypes, setBuildingTypes, tag)}
+                />
+                <TagGroup
+                  label="光影天气"
+                  options={WEATHER_TYPE_OPTIONS}
+                  selected={weatherTypes}
+                  onToggle={(tag) => toggleTag(weatherTypes, setWeatherTypes, tag)}
+                />
+                <TagGroup
+                  label="分析图类型"
+                  options={DIAGRAM_TYPE_OPTIONS}
+                  selected={diagramTypes}
+                  onToggle={(tag) => toggleTag(diagramTypes, setDiagramTypes, tag)}
                 />
               </div>
 
               {/* Error */}
               {error && (
-                <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
+                <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
                   {error}
                 </div>
               )}
 
-              {/* Status */}
+              {/* Upload status */}
               {statusText && (
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                <div className="flex items-center gap-2.5 text-sm text-zinc-500">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-800" />
                   {statusText}
                 </div>
@@ -455,12 +467,12 @@ export default function UploadModal({
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+            <div className="px-8 py-4 border-t border-zinc-100 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={uploading}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-700 transition-colors disabled:opacity-40 rounded-lg"
+                className="px-5 py-2.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors disabled:opacity-40 rounded-xl"
               >
                 取消
               </button>
@@ -468,7 +480,7 @@ export default function UploadModal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={uploading}
-                className="px-5 py-2 text-sm font-medium text-white bg-[#1c1c1e] hover:bg-black rounded-xl transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 text-sm font-medium text-white bg-[#1c1c1e] hover:bg-black rounded-xl transition-colors disabled:opacity-50 shadow-sm"
               >
                 {uploading ? "提交中..." : "提交"}
               </button>
@@ -484,66 +496,61 @@ export default function UploadModal({
 
 function TextField({
   label,
+  required,
   value,
   onChange,
   placeholder,
-  multiline,
-  rows,
 }: {
   label: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  multiline?: boolean;
-  rows?: number;
 }) {
   const id = label.replace(/\s/g, "");
   return (
     <div>
       <label
         htmlFor={id}
-        className="block text-xs font-medium text-zinc-400 mb-1.5"
+        className="block text-sm font-medium text-zinc-700 mb-2"
       >
         {label}
+        {required && (
+          <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
+        )}
       </label>
-      {multiline ? (
-        <textarea
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          rows={rows ?? 3}
-          className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 resize-none"
-        />
-      ) : (
-        <input
-          id={id}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-        />
-      )}
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg bg-zinc-50/80 border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 focus:bg-white"
+      />
     </div>
   );
 }
 
 function TagGroup({
   label,
+  required,
   options,
   selected,
   onToggle,
 }: {
   label: string;
+  required?: boolean;
   options: string[];
   selected: string[];
   onToggle: (tag: string) => void;
 }) {
   return (
     <div>
-      <span className="block text-xs font-medium text-zinc-400 mb-1.5">
+      <span className="block text-sm font-medium text-zinc-700 mb-2">
         {label}
+        {required && (
+          <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
+        )}
       </span>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => {
@@ -553,16 +560,13 @@ function TagGroup({
               key={opt}
               type="button"
               onClick={() => onToggle(opt)}
-              className={`relative rounded-xl px-2.5 py-1 text-xs leading-none outline-none transition-colors ${
+              className={`relative rounded-lg px-2.5 py-1.5 text-xs leading-none transition-all duration-150 ${
                 active
-                  ? "text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-700 bg-zinc-50 hover:bg-zinc-100"
+                  ? "text-white font-medium bg-[#1c1c1e] shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200/80"
               }`}
             >
-              {active && (
-                <div className="absolute inset-0 bg-[#1c1c1e] rounded-xl" />
-              )}
-              <span className="relative z-10">{opt}</span>
+              {opt}
             </button>
           );
         })}
@@ -573,6 +577,7 @@ function TagGroup({
 
 function ImageDropZone({
   label,
+  required,
   files,
   onSelect,
   onRemove,
@@ -583,6 +588,7 @@ function ImageDropZone({
   onFileChange,
 }: {
   label: string;
+  required?: boolean;
   files: File[];
   onSelect: () => void;
   onRemove: (idx: number) => void;
@@ -593,6 +599,7 @@ function ImageDropZone({
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
+  const hasFiles = files.length > 0;
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -610,7 +617,6 @@ function ImageDropZone({
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only reset if truly leaving the drop zone (not moving to a child)
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOver(false);
     }
@@ -630,9 +636,14 @@ function ImageDropZone({
 
   return (
     <div>
-      <span className="block text-xs font-medium text-zinc-400 mb-1.5">
+      {/* Label */}
+      <span className="block text-sm font-medium text-zinc-700 mb-2">
         {label}
+        {required && (
+          <span className="text-zinc-400 text-xs font-normal ml-0.5">*</span>
+        )}
       </span>
+
       <input
         ref={inputRef}
         id={inputId}
@@ -643,70 +654,112 @@ function ImageDropZone({
         onChange={onFileChange}
         disabled={disabled}
       />
-      {/* Drop zone — single div handles both drag & click, no inner button to intercept */}
+
+      {/* Drop zone — the entire area is a drop target */}
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         onClick={disabled ? undefined : onSelect}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!disabled) onSelect(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (!disabled) onSelect();
+          }
+        }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        className={`w-full rounded-lg border-2 border-dashed transition-colors flex items-center justify-center cursor-pointer ${
+        className={`relative w-full rounded-xl transition-all cursor-pointer select-none ${
           disabled ? "opacity-40 pointer-events-none" : ""
         } ${
-          dragOver
-            ? "border-zinc-800 bg-zinc-100"
-            : "border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50"
+          hasFiles
+            ? // Filled state: solid border, white bg, image content
+              `border border-zinc-200 bg-white ${
+                dragOver ? "ring-2 ring-zinc-400 border-zinc-400" : ""
+              }`
+            : // Empty state: dashed border, subtle bg
+              `border-2 border-dashed min-h-[200px] flex items-center justify-center ${
+                dragOver
+                  ? "border-zinc-800 bg-zinc-100"
+                  : "border-zinc-200 hover:border-zinc-400 bg-white/60 hover:bg-white"
+              }`
         }`}
       >
-        <div className="text-center py-4">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="mx-auto text-zinc-300 mb-1"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span className="text-xs text-zinc-400">
-            {files.length > 0
-              ? `已选 ${files.length} 张`
-              : dragOver
-              ? "释放以上传"
-              : "点击选择或拖拽图片"}
-          </span>
-        </div>
-      </div>
-
-      {/* Thumbnail previews */}
-      {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {files.map((f, i) => (
-            <div key={i} className="relative group">
-              <img
-                src={URL.createObjectURL(f)}
-                alt=""
-                className="w-16 h-16 rounded-lg object-cover border border-zinc-100"
-              />
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                disabled={disabled}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs disabled:hidden"
-              >
-                ×
-              </button>
+        {hasFiles ? (
+          /* ── Filled: image previews replace dashed box ── */
+          <div className="p-3">
+            {/* Image grid */}
+            <div
+              className={`grid gap-2 ${
+                files.length === 1
+                  ? "grid-cols-1"
+                  : files.length === 2
+                  ? "grid-cols-2"
+                  : "grid-cols-3"
+              }`}
+            >
+              {files.map((f, i) => (
+                <div
+                  key={i}
+                  className={`relative group overflow-hidden rounded-lg bg-zinc-100 ${
+                    files.length === 1 ? "aspect-[4/3]" : "aspect-square"
+                  }`}
+                >
+                  <img
+                    src={URL.createObjectURL(f)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(i);
+                    }}
+                    disabled={disabled}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors text-xs disabled:hidden"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Add-more hint */}
+            <div
+              className={`text-center ${
+                files.length > 0 ? "mt-3" : ""
+              }`}
+            >
+              <span className="text-xs text-zinc-400">
+                {dragOver ? "释放以添加更多" : "点击或拖拽添加更多图片"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* ── Empty state: dashed box with + icon ── */
+          <div className="text-center py-14">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="mx-auto text-zinc-300 mb-2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span className="text-sm text-zinc-400">
+              {dragOver ? "释放以上传" : "点击选择或拖拽图片"}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
