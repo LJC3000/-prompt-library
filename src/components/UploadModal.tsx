@@ -317,7 +317,7 @@ export default function UploadModal({
             </div>
 
             {/* Form */}
-            <div className="px-6 py-4 space-y-5">
+            <div className="px-6 pt-6 pb-4 space-y-5">
               {/* Text fields — 2-col grid on md+ */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Left column */}
@@ -409,6 +409,9 @@ export default function UploadModal({
                   files={resultFiles}
                   onSelect={() => resultInputRef.current?.click()}
                   onRemove={(i) => removeFile(i, "results")}
+                  onDropFiles={(files) =>
+                    handleFilesSelected(files, "results", resultFiles)
+                  }
                   disabled={uploading}
                   inputRef={resultInputRef}
                   inputId="result-upload"
@@ -423,6 +426,9 @@ export default function UploadModal({
                   files={refFiles}
                   onSelect={() => refInputRef.current?.click()}
                   onRemove={(i) => removeFile(i, "refs")}
+                  onDropFiles={(files) =>
+                    handleFilesSelected(files, "refs", refFiles)
+                  }
                   disabled={uploading}
                   inputRef={refInputRef}
                   inputId="ref-upload"
@@ -570,6 +576,7 @@ function ImageDropZone({
   files,
   onSelect,
   onRemove,
+  onDropFiles,
   disabled,
   inputRef,
   inputId,
@@ -579,11 +586,51 @@ function ImageDropZone({
   files: File[];
   onSelect: () => void;
   onRemove: (idx: number) => void;
+  onDropFiles: (fileList: FileList) => void;
   disabled: boolean;
   inputRef: React.RefObject<HTMLInputElement | null>;
   inputId: string;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOver(false);
+      dragCounterRef.current = 0;
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        onDropFiles(e.dataTransfer.files);
+      }
+    },
+    [onDropFiles]
+  );
+
   return (
     <div>
       <span className="block text-xs font-medium text-zinc-400 mb-1.5">
@@ -603,7 +650,15 @@ function ImageDropZone({
         type="button"
         onClick={onSelect}
         disabled={disabled}
-        className="w-full min-h-[100px] rounded-lg border-2 border-dashed border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50 transition-colors flex items-center justify-center disabled:opacity-40 cursor-pointer"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className={`w-full min-h-[100px] rounded-lg border-2 border-dashed transition-colors flex items-center justify-center disabled:opacity-40 cursor-pointer ${
+          dragOver
+            ? "border-zinc-800 bg-zinc-100"
+            : "border-zinc-200 hover:border-zinc-400 bg-zinc-50/50 hover:bg-zinc-50"
+        }`}
       >
         <div className="text-center">
           <svg
@@ -619,7 +674,11 @@ function ImageDropZone({
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           <span className="text-xs text-zinc-400">
-            {files.length > 0 ? `已选 ${files.length} 张` : "点击选择图片"}
+            {files.length > 0
+              ? `已选 ${files.length} 张`
+              : dragOver
+              ? "释放以上传"
+              : "点击选择或拖拽图片"}
           </span>
         </div>
       </button>
