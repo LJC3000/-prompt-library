@@ -310,14 +310,14 @@ export default function UploadModal({
             </button>
 
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-zinc-100">
+            <div className="px-6 pt-8 pb-4 border-b border-zinc-100">
               <h2 className="text-lg font-semibold text-zinc-900">
                 添加新 Prompt
               </h2>
             </div>
 
             {/* Form */}
-            <div className="px-6 pt-6 pb-4 space-y-5">
+            <div className="px-6 pt-2 pb-4 space-y-5">
               {/* Text fields — 2-col grid on md+ */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Left column */}
@@ -616,6 +616,7 @@ function ImageDropZone({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
   }, []);
 
   const handleDrop = useCallback(
