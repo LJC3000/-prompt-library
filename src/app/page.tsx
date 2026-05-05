@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue } from "react";
 import PromptCard from "@/components/PromptCard";
 import PromptModal from "@/components/PromptModal";
+import UploadButton from "@/components/UploadButton";
+import UploadModal from "@/components/UploadModal";
 import Navigation from "@/components/Navigation";
 import type { PromptCardItem, PromptItem } from "@/types/prompt";
 import { batchPreloadUrls } from "@/lib/imageUrl";
@@ -37,6 +39,7 @@ export default function Home() {
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<string | null>(null);
   const [selectedDiagram, setSelectedDiagram] = useState<string | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptItem | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const selectedIndexRef = useRef(-1);
@@ -224,6 +227,17 @@ export default function Home() {
     }
   }, [filtered]);
 
+  const handleUploadSuccess = useCallback(() => {
+    // Clear server cache and re-fetch to show new prompt cards immediately
+    fetch("/api/prompts?_refresh=1")
+      .then((res) => res.json())
+      .then((data) => {
+        const items = data.cards ?? [];
+        setCards(items);
+      })
+      .catch((err) => console.error("Failed to refresh prompts:", err));
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Navigation: floating all-in-one capsule */}
@@ -265,6 +279,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-6">
+            <UploadButton onClick={() => setUploadModalOpen(true)} />
             {deferredFiltered.map((card, i) => (
               <PromptCard
                 key={card.cardKey}
@@ -285,6 +300,12 @@ export default function Home() {
           Prompt Library v1.0 @蜗牛3点0 · lifelike3000@gmail.com
         </div>
       </footer>
+
+      <UploadModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onSuccess={handleUploadSuccess}
+      />
 
       <PromptModal
         prompt={selectedPrompt}

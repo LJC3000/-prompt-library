@@ -124,6 +124,11 @@ function recordToPromptItem(record: any): PromptItem {
 let promptsCache: { data: PromptCardItem[]; expiresAt: number } | null = null;
 const PROMPTS_CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
 
+/** Clear in-memory prompts cache so next fetch gets fresh data */
+export function clearPromptsCache(): void {
+  promptsCache = null;
+}
+
 export async function fetchPromptsFromFeishu(): Promise<PromptCardItem[]> {
   const now = Date.now();
   if (promptsCache && promptsCache.expiresAt > now) {
