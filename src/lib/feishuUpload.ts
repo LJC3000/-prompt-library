@@ -8,7 +8,8 @@ const FEISHU_APP_TOKEN = process.env.FEISHU_APP_TOKEN!;
  */
 export async function uploadImageToFeishu(
   buffer: Buffer,
-  fileName: string
+  fileName: string,
+  mimeType = "image/png"
 ): Promise<string> {
   const token = await getTenantAccessToken();
 
@@ -18,7 +19,7 @@ export async function uploadImageToFeishu(
   formData.append("parent_node", FEISHU_APP_TOKEN);
   formData.append("size", String(buffer.length));
   const uint8 = new Uint8Array(buffer);
-  formData.append("file", new Blob([uint8], { type: "image/png" }), fileName);
+  formData.append("file", new Blob([uint8], { type: mimeType }), fileName);
 
   const res = await fetch(
     "https://open.feishu.cn/open-apis/drive/v1/medias/upload_all",

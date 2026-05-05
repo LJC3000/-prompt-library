@@ -594,6 +594,12 @@ function ImageDropZone({
 }) {
   const [dragOver, setDragOver] = useState(false);
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -644,6 +650,7 @@ function ImageDropZone({
         role="button"
         tabIndex={disabled ? -1 : 0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!disabled) onSelect(); } }}
+        onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}

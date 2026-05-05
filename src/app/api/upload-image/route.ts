@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
     const info = await fetchImageInfo(qiniuUrl);
 
     // Upload to Feishu for attachment field reference
-    const feishuFileToken = await uploadImageToFeishu(buffer, file.name);
+    const mimeType = file.type || "image/png";
+    const feishuFileToken = await uploadImageToFeishu(buffer, file.name, mimeType);
 
     return NextResponse.json({
       file_token: feishuFileToken,
