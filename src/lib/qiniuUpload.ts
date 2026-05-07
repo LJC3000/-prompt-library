@@ -14,7 +14,7 @@ function urlsafeBase64(buf: Buffer): string {
     .replace(/=+$/, "");
 }
 
-/** Generate Qiniu upload token without the qiniu SDK */
+/** Generate a Qiniu upload token without the qiniu SDK */
 function generateUploadToken(key: string): string {
   const putPolicy = JSON.stringify({
     scope: `${bucket}:${key}`,
