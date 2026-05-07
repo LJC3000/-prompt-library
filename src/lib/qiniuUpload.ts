@@ -1,70 +1,46 @@
 import crypto from "node:crypto";
-import FormData from "form-data";
 
 const accessKey = process.env.QINIU_AK!;
 const secretKey = process.env.QINIU_SK!;
 const bucket = process.env.QINIU_BUCKET!;
 const domain = process.env.QINIU_DOMAIN!;
 
-function base64ToUrlSafe(v: string): string {
-  return v.replace(/\//g, "_").replace(/\+/g, "-");
-}
-
-function urlsafeBase64Encode(jsonFlags: string): string {
-  return base64ToUrlSafe(Buffer.from(jsonFlags, "utf-8").toString("base64"));
-}
-
-function hmacSha1(encodedFlags: string, secretKey: string): string {
-  const hmac = crypto.createHmac("sha1", secretKey);
-  hmac.update(encodedFlags);
-  return hmac.digest("base64");
-}
-
-function generateUploadToken(key: string): string {
-  const putPolicy = JSON.stringify({
-    scope: `${bucket}:${key}`,
-    deadline: Math.floor(Date.now() / 1000) + 7200,
-  });
-
-  const encodedFlags = urlsafeBase64Encode(putPolicy);
-  const encodedSign = base64ToUrlSafe(hmacSha1(encodedFlags, secretKey));
-
-  return `${accessKey}:${encodedSign}:${encodedFlags}`;
-}
-
-/** Upload a Buffer to Qiniu CDN, return the CDN URL */
 export async function uploadImageToQiniu(
   buffer: Buffer,
   key: string
 ): Promise<string> {
-  const token = generateUploadToken(key);
-
-  const form = new FormData();
-  form.append("token", token);
-  form.append("key", key);
-  form.append("file", buffer, {
-    filename: key,
-    contentType: "image/png",
-    knownLength: buffer.length,
+  // Dynamic import to avoid Turbopack build issue with qiniu SDK's proxy-agent dep
+  const qiniu = await import("qiniu");
+  const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${bucket}:${key}`,
+    expires: 7200,
   });
+  const uploadToken = putPolicy.uploadToken(mac);
 
-  const formBuffer = form.getBuffer();
-  const res = await fetch("https://up-z2.qiniup.com", {
-    method: "POST",
-    headers: {
-      ...form.getHeaders(),
-      "content-length": String(formBuffer.length),
-    },
-    body: new Uint8Array(formBuffer),
-    signal: AbortSignal.timeout(120_000),
+  // Use the SDK's form uploader directly (handles multipart correctly)
+  const config = new qiniu.conf.Config();
+  config.zone = qiniu.zone.Zone_z2; // 华南-广东
+  const formUploader = new qiniu.form_up.FormUploader(config);
+  const putExtra = new qiniu.form_up.PutExtra();
+
+  return new Promise((resolve, reject) => {
+    formUploader.put(uploadToken, key, buffer, putExtra, (err, body, info) => {
+      if (err) {
+        reject(new Error(`Qiniu upload failed: ${err.message}`));
+        return;
+      }
+      if (info.statusCode !== 200) {
+        reject(
+          new Error(
+            `Qiniu upload failed: ${body?.error || `HTTP ${info.statusCode}`}`
+          )
+        );
+        return;
+      }
+      resolve(`http://${domain}/${body.key}`);
+    });
   });
-
-  const data = await res.json();
-  if (data.error) {
-    throw new Error(`Qiniu upload failed: ${data.error}`);
-  }
-
-  return `http://${domain}/${data.key}`;
 }
 
 /** Fetch image dimensions from Qiniu via ?imageInfo */
