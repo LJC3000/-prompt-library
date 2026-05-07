@@ -6,31 +6,33 @@ const secretKey = process.env.QINIU_SK!;
 const bucket = process.env.QINIU_BUCKET!;
 const domain = process.env.QINIU_DOMAIN!;
 
-function urlsafeBase64(buf: Buffer): string {
-  return buf
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+function base64ToUrlSafe(v: string): string {
+  return v.replace(/\//g, "_").replace(/\+/g, "-");
+}
+
+function urlsafeBase64Encode(jsonFlags: string): string {
+  return base64ToUrlSafe(Buffer.from(jsonFlags, "utf-8").toString("base64"));
+}
+
+function hmacSha1(encodedFlags: string, secretKey: string): string {
+  const hmac = crypto.createHmac("sha1", secretKey);
+  hmac.update(encodedFlags);
+  return hmac.digest("base64");
 }
 
 function generateUploadToken(key: string): string {
-  const deadline = Math.floor(Date.now() / 1000) + 7200;
   const putPolicy = JSON.stringify({
     scope: `${bucket}:${key}`,
-    deadline,
+    deadline: Math.floor(Date.now() / 1000) + 7200,
   });
 
-  const encodedPutPolicy = urlsafeBase64(Buffer.from(putPolicy, "utf-8"));
-  const sign = crypto
-    .createHmac("sha1", secretKey)
-    .update(encodedPutPolicy)
-    .digest();
-  const encodedSign = urlsafeBase64(sign);
+  const encodedFlags = urlsafeBase64Encode(putPolicy);
+  const encodedSign = base64ToUrlSafe(hmacSha1(encodedFlags, secretKey));
 
-  return `${accessKey}:${encodedSign}:${encodedPutPolicy}`;
+  return `${accessKey}:${encodedSign}:${encodedFlags}`;
 }
 
+/** Upload a Buffer to Qiniu CDN, return the CDN URL */
 export async function uploadImageToQiniu(
   buffer: Buffer,
   key: string
@@ -46,7 +48,6 @@ export async function uploadImageToQiniu(
     knownLength: buffer.length,
   });
 
-  // Convert form-data to a Buffer so fetch sends it correctly
   const formBuffer = form.getBuffer();
   const res = await fetch("https://up-z2.qiniup.com", {
     method: "POST",
@@ -66,6 +67,7 @@ export async function uploadImageToQiniu(
   return `http://${domain}/${data.key}`;
 }
 
+/** Fetch image dimensions from Qiniu via ?imageInfo */
 export async function fetchImageInfo(
   qiniuUrl: string
 ): Promise<{ w: number; h: number } | null> {
