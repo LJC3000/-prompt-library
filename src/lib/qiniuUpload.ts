@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
+import FormData from "form-data";
 
 const accessKey = process.env.QINIU_AK!;
 const secretKey = process.env.QINIU_SK!;
 const bucket = process.env.QINIU_BUCKET!;
 const domain = process.env.QINIU_DOMAIN!;
 
-/** URL-safe Base64 encode */
 function urlsafeBase64(buf: Buffer): string {
   return buf
     .toString("base64")
@@ -14,11 +14,11 @@ function urlsafeBase64(buf: Buffer): string {
     .replace(/=+$/, "");
 }
 
-/** Generate a Qiniu upload token without the qiniu SDK */
 function generateUploadToken(key: string): string {
+  const deadline = Math.floor(Date.now() / 1000) + 7200;
   const putPolicy = JSON.stringify({
     scope: `${bucket}:${key}`,
-    expires: 7200,
+    deadline,
   });
 
   const encodedPutPolicy = urlsafeBase64(Buffer.from(putPolicy, "utf-8"));
@@ -31,7 +31,6 @@ function generateUploadToken(key: string): string {
   return `${accessKey}:${encodedSign}:${encodedPutPolicy}`;
 }
 
-/** Upload a Buffer to Qiniu CDN, return the CDN URL */
 export async function uploadImageToQiniu(
   buffer: Buffer,
   key: string
@@ -39,14 +38,18 @@ export async function uploadImageToQiniu(
   const token = generateUploadToken(key);
 
   const formData = new FormData();
-  formData.set("token", token);
-  formData.set("key", key);
-  const uint8 = new Uint8Array(buffer);
-  formData.set("file", new Blob([uint8]));
+  formData.append("token", token);
+  formData.append("key", key);
+  formData.append("file", buffer, {
+    filename: key,
+    contentType: "image/png",
+    knownLength: buffer.length,
+  });
 
   const res = await fetch("https://up-z2.qiniup.com", {
     method: "POST",
-    body: formData,
+    headers: formData.getHeaders(),
+    body: formData as any,
     signal: AbortSignal.timeout(120_000),
   });
 
@@ -58,7 +61,6 @@ export async function uploadImageToQiniu(
   return `http://${domain}/${data.key}`;
 }
 
-/** Fetch image dimensions from Qiniu via ?imageInfo */
 export async function fetchImageInfo(
   qiniuUrl: string
 ): Promise<{ w: number; h: number } | null> {
