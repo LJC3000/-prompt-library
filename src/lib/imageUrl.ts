@@ -23,13 +23,18 @@ export function proxyUrl(file: FeishuFile | null | undefined): string | null {
   return `/api/image?${params.toString()}`;
 }
 
+/** Check if a URL uses Feishu internal domain (not reachable from browser) */
+function isFeishuInternalUrl(url: string): boolean {
+  return url.includes("internal-api-drive-stream.feishu.cn");
+}
+
 /**
  * Full-resolution image source for Modal.
- * Priority: 飞书tmp_url(HTTPS直连) > 七牛代理(fallback) > API代理
+ * Priority: 飞书tmp_url(非内网) > 七牛 > API代理(服务端Bearer)
  */
 export function imageSrc(file: FeishuFile | null | undefined): string | undefined {
   if (!file) return undefined;
-  if (file.tmp_url) return file.tmp_url;
+  if (file.tmp_url && !isFeishuInternalUrl(file.tmp_url)) return file.tmp_url;
   if (file.qiniu_url) {
     if (file.qiniu_url.startsWith("https://")) return toWebp(file.qiniu_url);
     return `/api/qiniu-proxy?url=${encodeURIComponent(toWebp(file.qiniu_url))}`;
@@ -43,7 +48,7 @@ export function imageSrc(file: FeishuFile | null | undefined): string | undefine
  */
 export function cardThumbSrc(file: FeishuFile | null | undefined): string | undefined {
   if (!file) return undefined;
-  if (file.tmp_url) return file.tmp_url;
+  if (file.tmp_url && !isFeishuInternalUrl(file.tmp_url)) return file.tmp_url;
   if (file.qiniu_url) {
     if (file.qiniu_url.startsWith("https://")) {
       return toWebp(file.qiniu_url) + "&imageMogr2/thumbnail/400x";
@@ -93,7 +98,7 @@ function flushRefreshQueue() {
         const data = await res.json();
         const urls: Record<string, string> = data.urls ?? {};
         for (const ft of tokens) {
-          resultMap.set(ft, urls[ft] ?? null);
+          resultMap.set(ft, urls[ft] && !urls[ft].includes("internal-api-drive-stream.feishu.cn") ? urls[ft] : null);
         }
       } catch {
         for (const ft of tokens) resultMap.set(ft, null);
@@ -161,7 +166,8 @@ export async function batchPreloadUrls(
           const data = await res.json();
           const urls: Record<string, string> = data.urls ?? {};
           for (const ft of Object.keys(urls)) {
-            if (urls[ft]) result.set(ft, urls[ft]);
+            if (urls[ft] && !urls[ft].includes("internal-api-drive-stream.feishu.cn"))
+              result.set(ft, urls[ft]);
           }
         } catch {
           // skip failed batch
