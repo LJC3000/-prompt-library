@@ -37,19 +37,24 @@ export async function uploadImageToQiniu(
 ): Promise<string> {
   const token = generateUploadToken(key);
 
-  const formData = new FormData();
-  formData.append("token", token);
-  formData.append("key", key);
-  formData.append("file", buffer, {
+  const form = new FormData();
+  form.append("token", token);
+  form.append("key", key);
+  form.append("file", buffer, {
     filename: key,
     contentType: "image/png",
     knownLength: buffer.length,
   });
 
+  // Convert form-data to a Buffer so fetch sends it correctly
+  const formBuffer = form.getBuffer();
   const res = await fetch("https://up-z2.qiniup.com", {
     method: "POST",
-    headers: formData.getHeaders(),
-    body: formData as any,
+    headers: {
+      ...form.getHeaders(),
+      "content-length": String(formBuffer.length),
+    },
+    body: new Uint8Array(formBuffer),
     signal: AbortSignal.timeout(120_000),
   });
 
