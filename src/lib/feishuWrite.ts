@@ -39,10 +39,12 @@ export async function createFeishuRecord(
 ): Promise<string> {
   const token = await getTenantAccessToken();
 
-  // Build 七牛映射: merge results + refImages
+  // Build 七牛映射: merge results + refImages (skip images without file_token)
   const qiniuMap: Record<string, { url: string; w?: number; h?: number }> = {};
   for (const img of [...fields.results, ...fields.refImages]) {
-    qiniuMap[img.file_token] = { url: img.qiniu_url, w: img.w, h: img.h };
+    if (img.file_token) {
+      qiniuMap[img.file_token] = { url: img.qiniu_url, w: img.w, h: img.h };
+    }
   }
 
   const body: Record<string, unknown> = {
