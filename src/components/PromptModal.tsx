@@ -66,6 +66,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
   const [refreshedRefUrls, setRefreshedRefUrls] = useState<Record<string, string>>({});
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const sourceModeRef = useRef(sourceMode);
+  const refExhaustedRef = useRef(new Set<string>());
 
   const imageCacheRef = useRef<Map<string, ImageCache>>(new Map());
 
@@ -93,6 +94,7 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
     setRefLoadedMap({});
     setRefreshedRefUrls({});
     setViewerSrc(null);
+    refExhaustedRef.current.clear();
 
     if (prompt) {
       const cached = imageCacheRef.current.get(prompt.id);
@@ -119,10 +121,36 @@ export default function PromptModal({ prompt, hasNext, hasPrev, onNext, onPrev, 
 
   const handleRefError = useCallback((file: NonNullable<PromptItem["results"]>[number]) => {
     if (!file.file_token) return;
-    refreshTmpUrl(file.file_token, file.extra).then((url) => {
-      if (url) setRefreshedRefUrls((prev) => ({ ...prev, [file.file_token]: url }));
+    const token = file.file_token;
+    if (refExhaustedRef.current.has(token)) return;
+    refExhaustedRef.current.add(token);
+    refreshTmpUrl(token, file.extra).then((url) => {
+      if (url) {
+        setRefreshedRefUrls((prev) => ({ ...prev, [token]: url }));
+      } else {
+        // refresh 也失败 → 降级到 proxy
+        const proxy = proxyUrl(file);
+        if (proxy) setRefreshedRefUrls((prev) => ({ ...prev, [token]: proxy }));
+      }
     });
   }, []);
+
+  // Ref image 15s loading timeout: auto-trigger fallback for stalled images
+  useEffect(() => {
+    if (!prompt?.refImages) return;
+    const unloaded = prompt.refImages.filter(
+      f => f.file_token && !refLoadedMap[f.file_token]
+    );
+    if (unloaded.length === 0) return;
+    const timer = setTimeout(() => {
+      for (const file of unloaded) {
+        if (file.file_token && !refLoadedMap[file.file_token]) {
+          handleRefError(file);
+        }
+      }
+    }, 15_000);
+    return () => clearTimeout(timer);
+  }, [prompt, refLoadedMap, handleRefError]);
 
   const handleMainLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     setMainImgLoaded(true);

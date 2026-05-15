@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
       return await fetchWithRetry(url, {
         Authorization: `Bearer ${token}`,
         Accept: "image/avif,image/webp,image/png,image/*,*/*",
-      }, 60_000, 3);
+      }, 8_000, 1);
     } finally {
       bucket.release();
     }

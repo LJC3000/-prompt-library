@@ -23,9 +23,10 @@ export function proxyUrl(file: FeishuFile | null | undefined): string | null {
   return `/api/image?${params.toString()}`;
 }
 
-/** Check if a URL uses Feishu internal domain (not reachable from browser) */
+/** Check if a URL uses Feishu domain (not reachable by browser cross-origin) */
 function isFeishuInternalUrl(url: string): boolean {
-  return url.includes("internal-api-drive-stream.feishu.cn");
+  return url.includes("internal-api-drive-stream.feishu.cn") ||
+         url.includes("open.feishu.cn/open-apis/drive");
 }
 
 /**

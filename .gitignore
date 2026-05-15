@@ -45,4 +45,7 @@ next-env.d.ts
 scripts/.qiniu-cache.json
 test_img.png
 
+# private API documentation
+API_DOCUMENTATION.md
+
 .vercel
