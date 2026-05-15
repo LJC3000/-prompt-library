@@ -92,7 +92,6 @@ function recordToPromptItem(record: any): PromptItem {
       if (qiniu) {
         const qiniuUrl = typeof qiniu === "string" ? qiniu : qiniu.url;
         const result: FeishuFile = { ...f, qiniu_url: qiniuUrl };
-        // 从七牛数据设置精确宽高比
         if (typeof qiniu !== "string" && qiniu.w && qiniu.h) {
           result.aspectRatio = qiniu.w / qiniu.h;
         }
@@ -100,6 +99,29 @@ function recordToPromptItem(record: any): PromptItem {
       }
       return f;
     });
+  }
+
+  /**
+   * Create synthetic FeishuFile entries from qiniuMap synthetic keys.
+   * These are images uploaded directly to Qiniu without a Feishu file_token.
+   */
+  function parseSyntheticImages(prefix: "__result_" | "__ref_"): FeishuFile[] {
+    const entries: FeishuFile[] = [];
+    for (const [key, value] of Object.entries(qiniuMap)) {
+      if (!key.startsWith(prefix)) continue;
+      const qiniuUrl = typeof value === "string" ? value : value.url;
+      const aspectRatio =
+        typeof value !== "string" && value.w && value.h ? value.w / value.h : null;
+      entries.push({
+        file_token: key,
+        name: "",
+        size: 0,
+        type: "image",
+        qiniu_url: qiniuUrl,
+        aspectRatio,
+      });
+    }
+    return entries;
   }
 
   return {
@@ -111,8 +133,14 @@ function recordToPromptItem(record: any): PromptItem {
     department: fields["部门"] ?? "",
     aiTool: fields["AI工具"] ?? "",
     aiModel: fields["AI模型"] ?? "",
-    refImages: withQiniu(parseFiles(fields["参考图片"])),
-    results: withQiniu(parseFiles(fields["生成结果"])),
+    refImages: withQiniu([
+      ...parseFiles(fields["参考图片"]),
+      ...parseSyntheticImages("__ref_"),
+    ]),
+    results: withQiniu([
+      ...parseFiles(fields["生成结果"]),
+      ...parseSyntheticImages("__result_"),
+    ]),
     imageTypes,
     buildingTypes: Array.isArray(fields["建筑类型"]) ? fields["建筑类型"] : undefined,
     weatherTypes: Array.isArray(fields["光影天气"]) ? fields["光影天气"] : undefined,

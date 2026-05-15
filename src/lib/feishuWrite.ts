@@ -39,12 +39,18 @@ export async function createFeishuRecord(
 ): Promise<string> {
   const token = await getTenantAccessToken();
 
-  // Build 七牛映射: merge results + refImages (skip images without file_token)
+  // Build 七牛映射: merge results + refImages
+  // Images without file_token (Feishu upload skipped) use generated keys
   const qiniuMap: Record<string, { url: string; w?: number; h?: number }> = {};
-  for (const img of [...fields.results, ...fields.refImages]) {
-    if (img.file_token) {
-      qiniuMap[img.file_token] = { url: img.qiniu_url, w: img.w, h: img.h };
-    }
+  let resultIdx = 0;
+  for (const img of fields.results) {
+    const key = img.file_token || `__result_${resultIdx++}`;
+    qiniuMap[key] = { url: img.qiniu_url, w: img.w, h: img.h };
+  }
+  let refIdx = 0;
+  for (const img of fields.refImages) {
+    const key = img.file_token || `__ref_${refIdx++}`;
+    qiniuMap[key] = { url: img.qiniu_url, w: img.w, h: img.h };
   }
 
   const body: Record<string, unknown> = {
