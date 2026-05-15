@@ -27,11 +27,19 @@ export async function POST(request: NextRequest) {
     const ext = file.name.split(".").pop() ?? "png";
     const fileTokenKey = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Upload to Qiniu
-    const qiniuUrl = await uploadImageToQiniu(buffer, fileTokenKey);
+    // Upload to Qiniu (optional — Vercel 没有七牛配置时自动跳过)
+    let qiniuUrl: string | null = null;
+    try {
+      qiniuUrl = await uploadImageToQiniu(buffer, fileTokenKey);
+    } catch (e) {
+      console.log(`[upload-image] Qiniu skipped: ${e instanceof Error ? e.message : "unknown"}`);
+    }
 
-    // Get image dimensions from Qiniu
-    const info = await fetchImageInfo(qiniuUrl);
+    // Get image dimensions from Qiniu (only if uploaded)
+    let info: { w: number; h: number } | null = null;
+    if (qiniuUrl) {
+      info = await fetchImageInfo(qiniuUrl);
+    }
 
     // Upload to Feishu for attachment field reference
     const mimeType = file.type || "image/png";
