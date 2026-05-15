@@ -48,4 +48,8 @@ test_img.png
 # private API documentation
 API_DOCUMENTATION.md
 
+# Playwright test artifacts
+.playwright-mcp/
+*.yml
+
 .vercel

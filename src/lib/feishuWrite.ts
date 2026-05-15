@@ -13,16 +13,16 @@ export interface CreatePromptFields {
   buildingTypes: string[];
   weatherTypes: string[];
   diagramTypes: string[];
-  /** result images: file_token + qiniu metadata */
+  /** result images: file_token (optional) + qiniu metadata */
   results: Array<{
-    file_token: string;
+    file_token: string | null;
     qiniu_url: string;
     w?: number;
     h?: number;
   }>;
   /** reference images */
   refImages: Array<{
-    file_token: string;
+    file_token: string | null;
     qiniu_url: string;
     w?: number;
     h?: number;
@@ -56,8 +56,8 @@ export async function createFeishuRecord(
       建筑类型: fields.buildingTypes,
       光影天气: fields.weatherTypes,
       分析图类型: fields.diagramTypes,
-      生成结果: fields.results.map((r) => ({ file_token: r.file_token })),
-      参考图片: fields.refImages.map((r) => ({ file_token: r.file_token })),
+      生成结果: fields.results.filter((r) => r.file_token).map((r) => ({ file_token: r.file_token! })),
+      参考图片: fields.refImages.filter((r) => r.file_token).map((r) => ({ file_token: r.file_token! })),
       七牛映射: JSON.stringify(qiniuMap),
     },
   };

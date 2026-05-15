@@ -28,7 +28,7 @@ const DIAGRAM_TYPE_OPTIONS = [
 // ── Upload result type ──
 
 interface UploadedImage {
-  file_token: string;
+  file_token: string | null;
   qiniu_url: string;
   w: number | null;
   h: number | null;

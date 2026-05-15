@@ -41,9 +41,14 @@ export async function POST(request: NextRequest) {
       info = await fetchImageInfo(qiniuUrl);
     }
 
-    // Upload to Feishu for attachment field reference
-    const mimeType = file.type || "image/png";
-    const feishuFileToken = await uploadImageToFeishu(buffer, file.name, mimeType);
+    // Upload to Feishu for attachment field reference (optional)
+    let feishuFileToken: string | null = null;
+    try {
+      const mimeType = file.type || "image/png";
+      feishuFileToken = await uploadImageToFeishu(buffer, file.name, mimeType);
+    } catch (e) {
+      console.log(`[upload-image] Feishu skipped: ${e instanceof Error ? e.message : "unknown"}`);
+    }
 
     return NextResponse.json({
       file_token: feishuFileToken,
