@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchPromptsFromFeishu } from "@/lib/feishu";
+import { fetchPromptsFromFeishu, clearPromptsCache } from "@/lib/feishu";
 
 export const revalidate = 300; // CDN 边缘缓存 5 分钟，连 Lambda 都不触发
 
@@ -16,6 +16,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ cards: cache.data }, {
       headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
     });
+  }
+
+  // Force refresh also clears the feishu.ts 12-hour in-memory cache
+  if (forceRefresh) {
+    clearPromptsCache();
   }
 
   try {
